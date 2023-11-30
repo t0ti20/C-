@@ -1,14 +1,8 @@
-#include <iostream>
-using namespace std;
-int main()
+#include "Print.hpp"
+
+using namespace print;
+int main() 
 {
-  cout << "Hello World !" << endl;
-  cout << "Hello World !" << endl;
-  cout << "Hello World !" << endl;
-  cout << "Hello World !" << endl;
-  cout << "Hello World !" << endl;
-  cout << "Hello World !" << endl;
-  cout << "Hello World !" << endl;
-  cout << "Hello World !" << endl;
+  Print Welcome;
   return 0;
 }
