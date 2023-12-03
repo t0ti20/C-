@@ -3,7 +3,7 @@
 using namespace print;
 int main() 
 {
-  Print Welcome;
-  Print Welcome;
+  Print Welcome1;
+  Print Welcome2;
   return 0;
 }
