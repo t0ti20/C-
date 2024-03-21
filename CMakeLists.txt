@@ -12,8 +12,6 @@ message(STATUS "Files To Be Compiled : ${SOURCES}")
 include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/Include/)
 #Add Executable
 add_executable(${PROJECT_NAME} ${SOURCES})
-# Set install directory to binary directory
-set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR}/install)
 # Install executable to binary directory
 install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 #Building Message
