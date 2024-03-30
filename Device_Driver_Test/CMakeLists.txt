@@ -12,8 +12,8 @@ message(STATUS "Files To Be Compiled : ${SOURCES}")
 include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/Include/)
 #Add Executable
 add_executable(${PROJECT_NAME} ${SOURCES})
-# Install executable to binary directory
-install(TARGETS ${PROJECT_NAME} DESTINATION bin)
+# # Install executable to binary directory
+# install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 #Building Message
 message(STATUS "================ Application Build Finish ================")
-
+set(CMAKE_TOOLCHAIN_FILE $ENV{OE_CMAKE_TOOLCHAIN_FILE})

@@ -2,42 +2,37 @@
  *  FILE DESCRIPTION
 -----------------------
  *  Author: Khaled El-Sayed @t0ti20
- *  File: ./Print.hpp
- *  Date: November 30, 2023
+ *  File: Driver.h
+ *  Date: March 28, 2024
  *  Description: This Is Default Test File For CPP Generator
- *  Class Name: Print
- *  (C) 2023 "@t0ti20". All rights reserved.
+ *  Class Name: Driver
+ *  (C) 2024 "@t0ti20". All rights reserved.
 *******************************************************************/
+#ifndef _DRIVER_HPP_
+#define _DRIVER_HPP_
+/******************************************************************/
 /*****************************************
-------------    Include     --------------
+------------    Includes     -------------
 *****************************************/
 #include <iostream>
-#include <unistd.h>
-#include <string>
+#include <fstream>
 /*****************************************
 ----------    GLOBAL DATA     ------------
 *****************************************/
-namespace Mine
+namespace Driver_Development
 {
-class Print
+class Driver
 {
 public:
-     Print(){std::cout<<Welcome_Message<<std::endl;}
-     ~Print(){std::cout<<Exit_Message<<std::endl;}
-     void Busy_Test(void)
-     {
-          while(true)
-          {
-               std::cout<<"Hello World !"<<std::endl;
-               sleep(5);
-          }
-     }
+    Driver(void)=default;
+    void Write_File(std::string &Message);
+    std::string Read_File(void);
 private:
-     std::string Welcome_Message{"Starting Hello World Application !"};
-     std::string Exit_Message{"Ending My Application"};
-protected:
+    const std::string Driver_Path{"/dev/Control_LED"};
+    std::fstream Driver_File{};
 };
 }
 /********************************************************************
- *  END OF FILE:  ./Print.hpp
+ *  END OF FILE:  Driver.h
 ********************************************************************/
+#endif
