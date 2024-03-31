@@ -1,2 +1,4 @@
 cmake_install.cmake
 .gitignore
+cmake_install.cmake
+.gitignore

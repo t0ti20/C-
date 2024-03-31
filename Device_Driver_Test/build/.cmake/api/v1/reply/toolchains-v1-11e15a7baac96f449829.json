@@ -1,0 +1,103 @@
+{
+	"kind" : "toolchains",
+	"toolchains" : 
+	[
+		{
+			"compiler" : 
+			{
+				"id" : "GNU",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"/opt/poky/4.0.17/sysroots/x86_64-pokysdk-linux/usr/lib/aarch64-poky-linux/gcc/aarch64-poky-linux/11.4.0/include",
+						"/opt/poky/4.0.17/sysroots/x86_64-pokysdk-linux/usr/lib/aarch64-poky-linux/gcc/aarch64-poky-linux/11.4.0/include-fixed",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/include"
+					],
+					"linkDirectories" : 
+					[
+						"/opt/poky/4.0.17/sysroots/x86_64-pokysdk-linux/usr/lib/aarch64-poky-linux/gcc/aarch64-poky-linux/11.4.0",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/lib",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/lib/aarch64-poky-linux/11.4.0",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/lib"
+					],
+					"linkFrameworkDirectories" : [],
+					"linkLibraries" : 
+					[
+						"gcc",
+						"gcc_s",
+						"c",
+						"gcc",
+						"gcc_s"
+					]
+				},
+				"path" : "/opt/poky/4.0.17/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-gcc",
+				"version" : "11.4.0"
+			},
+			"language" : "C",
+			"sourceFileExtensions" : 
+			[
+				"c",
+				"m"
+			]
+		},
+		{
+			"compiler" : 
+			{
+				"id" : "GNU",
+				"implicit" : 
+				{
+					"includeDirectories" : 
+					[
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/include/c++/11.4.0",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/include/c++/11.4.0/aarch64-poky-linux",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/include/c++/11.4.0/backward",
+						"/opt/poky/4.0.17/sysroots/x86_64-pokysdk-linux/usr/lib/aarch64-poky-linux/gcc/aarch64-poky-linux/11.4.0/include",
+						"/opt/poky/4.0.17/sysroots/x86_64-pokysdk-linux/usr/lib/aarch64-poky-linux/gcc/aarch64-poky-linux/11.4.0/include-fixed",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/include"
+					],
+					"linkDirectories" : 
+					[
+						"/opt/poky/4.0.17/sysroots/x86_64-pokysdk-linux/usr/lib/aarch64-poky-linux/gcc/aarch64-poky-linux/11.4.0",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/lib",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/lib/aarch64-poky-linux/11.4.0",
+						"/opt/poky/4.0.17/sysroots/cortexa72-poky-linux/usr/lib"
+					],
+					"linkFrameworkDirectories" : [],
+					"linkLibraries" : 
+					[
+						"stdc++",
+						"m",
+						"gcc_s",
+						"gcc",
+						"c",
+						"gcc_s",
+						"gcc"
+					]
+				},
+				"path" : "/opt/poky/4.0.17/sysroots/x86_64-pokysdk-linux/usr/bin/aarch64-poky-linux/aarch64-poky-linux-g++",
+				"version" : "11.4.0"
+			},
+			"language" : "CXX",
+			"sourceFileExtensions" : 
+			[
+				"C",
+				"M",
+				"c++",
+				"cc",
+				"cpp",
+				"cxx",
+				"mm",
+				"mpp",
+				"CPP",
+				"ixx",
+				"cppm"
+			]
+		}
+	],
+	"version" : 
+	{
+		"major" : 1,
+		"minor" : 0
+	}
+}
