@@ -1,0 +1,15 @@
+# Ignore generated CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Ignore the Device_Driver_Test directory
+Device_Driver_Test/
+
+# Ignore all build directories
+*/build/
+**/build/
+
+# Ignore Visual Studio Code settings
+.vscode/
