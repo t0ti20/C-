@@ -1,3 +1,0 @@
-/home/t0ti20/Github/CPP_Applications/Device_Driver_Test/build/CMakeFiles/Test_CPP.dir
-/home/t0ti20/Github/CPP_Applications/Device_Driver_Test/build/CMakeFiles/edit_cache.dir
-/home/t0ti20/Github/CPP_Applications/Device_Driver_Test/build/CMakeFiles/rebuild_cache.dir
