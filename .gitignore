@@ -7,4 +7,6 @@ Makefile
 **/build/
 **/.vscode/
 */.vscode/
+.vscode/
+# Hide the .gitignore file
 .gitignore
