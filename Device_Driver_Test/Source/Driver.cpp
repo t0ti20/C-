@@ -19,35 +19,50 @@ using namespace std;
 namespace Driver_Development
 {
 /*****************************************
-----=-----    Driver Class     -----------
+----------    Driver Class     -----------
 *****************************************/
 /*--------------------------------------*/
-void Driver::Write_File(std::string &Message)
+Driver::Driver(std::string Driver_Path):Path{Driver_Path}{}
+/*--------------------------------------*/
+void Driver::Write_File(const char *Message,size_t Size)
 {
-    Driver_File.open(Driver_Path,std::ios::out);
-    if(Driver_File.is_open())
+    File.open(Path,std::ios::out);
+    if(File.is_open())
     {
-        Driver_File.write(Message.c_str(),Message.size());
-        Driver_File.close();
+        File.write(Message,Size);
+        File.close();
     }
     else
     {
-        std::cout<<"File : "<<Driver_Path<<"Not Exists."<<endl;
+        std::cout<<"File : "<<Path<<"Not Exists."<<endl;
+    }
+}
+void Driver::Write_File(const std::string &Message)
+{
+    File.open(Path,std::ios::out);
+    if(File.is_open())
+    {
+        File.write(Message.c_str(),Message.size());
+        File.close();
+    }
+    else
+    {
+        std::cout<<"File : "<<Path<<"Not Exists."<<endl;
     }
 }
 /*--------------------------------------*/
 std::string Driver::Read_File(void)
 {
     std::string Result{};
-    Driver_File.open(Driver_Path,std::ios::in);
-    if(Driver_File.is_open())
+    File.open(Path,std::ios::in);
+    if(File.is_open())
     {
-        std::getline(Driver_File,Result);
-        Driver_File.close();
+        std::getline(File,Result);
+        File.close();
     }
     else
     {
-        std::cout<<"File : "<<Driver_Path<<"Not Exists."<<endl;
+        std::cout<<"File : "<<Path<<"Not Exists."<<endl;
     }
     return Result;
 }
@@ -56,19 +71,3 @@ std::string Driver::Read_File(void)
 /********************************************************************
  *  END OF FILE:  Driver.cpp
 ********************************************************************/
-using namespace Driver_Development;
-using namespace std;
-int main()
-{
-    Driver LED{};
-    string Input{};
-    while(1)
-    {
-        cout<<"Enter String To Write To File : ";
-        getline(cin,Input);
-        LED.Write_File(Input);
-        Input=LED.Read_File();
-        cout<<"Data From File : "<<Input<<endl;
-    }
-    return 0;
-}

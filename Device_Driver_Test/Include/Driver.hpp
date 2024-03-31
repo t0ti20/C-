@@ -24,12 +24,13 @@ namespace Driver_Development
 class Driver
 {
 public:
-    Driver(void)=default;
-    void Write_File(std::string &Message);
+    Driver(std::string Driver_Path);
+    void Write_File(const char *Message,size_t Size);
+    void Write_File(const std::string &Message);
     std::string Read_File(void);
 private:
-    const std::string Driver_Path{"/dev/Control_LED"};
-    std::fstream Driver_File{};
+    std::string Path{};
+    std::fstream File{};
 };
 }
 /********************************************************************
