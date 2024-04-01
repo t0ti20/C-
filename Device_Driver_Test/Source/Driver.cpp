@@ -21,7 +21,6 @@ namespace Driver_Development
 /*****************************************
 ----------    Driver Class     -----------
 *****************************************/
-/*--------------------------------------*/
 Driver::Driver(std::string Driver_Path):Path{Driver_Path}{}
 /*--------------------------------------*/
 void Driver::Write_File(const char *Message,size_t Size)
