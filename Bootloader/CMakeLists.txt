@@ -8,7 +8,7 @@ project(Bootloader VERSION 22.22)
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR} "Source/*.c" "Source/*.cpp")
 #Building Message
 message(STATUS "Files To Be Compiled : ${SOURCES}")
-#Specify include directories
+# Specify include directories relative to the current CMake file
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Include)
 #Add Executable
 add_executable(${PROJECT_NAME} ${SOURCES})
