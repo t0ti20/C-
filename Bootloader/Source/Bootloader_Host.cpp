@@ -34,21 +34,21 @@ namespace Bootloader
 GPIO_Manage::GPIO_Manage(const std::string &GPIO_Manage_Pin):Pin_Number{GPIO_Manage_Pin}
 {
     /* Open the file for exporting GPIO pins */
-    GPIO_Pin.open("/sys/class/gpio/export");
+    Pin_Handlar.open("/sys/class/gpio/export");
     /* Check if file is successfully opened */
-    if (GPIO_Pin.is_open())
+    if (Pin_Handlar.is_open())
     {
-        GPIO_Pin<<Pin_Number;
-        GPIO_Pin.flush();
-        GPIO_Pin.close();
+        Pin_Handlar<<Pin_Number;
+        Pin_Handlar.flush();
+        Pin_Handlar.close();
         /* Open the file for setting pin direction */
-        PIN_Direction.open("/sys/class/gpio/gpio"+Pin_Number+"/direction");
-        if (PIN_Direction.is_open())
+        Pin_Handlar.open("/sys/class/gpio/gpio"+Pin_Number+"/direction");
+        if (Pin_Handlar.is_open())
         {
             /*  Write "out" to set pin direction as output */
-            PIN_Direction<<"out";
-            PIN_Direction.flush();
-            PIN_Direction.close();
+            Pin_Handlar<<"out";
+            Pin_Handlar.flush();
+            Pin_Handlar.close();
         }
         /* Print error message if failed to open direction file */
         else{std::cout<<"Failed to open direction file."<<std::endl;}
@@ -71,13 +71,13 @@ GPIO_Manage::GPIO_Manage(const std::string &GPIO_Manage_Pin):Pin_Number{GPIO_Man
 GPIO_Manage::~GPIO_Manage()
 {
     /* Unexport GPIO pin when object is destroyed */
-    GPIO_Pin.open("/sys/class/gpio/unexport"); 
+    Pin_Handlar.open("/sys/class/gpio/unexport"); 
     /* Check if file is successfully opened */
-    if (GPIO_Pin.is_open())
+    if (Pin_Handlar.is_open())
     {
-        GPIO_Pin<<Pin_Number; 
-        GPIO_Pin.flush(); 
-        GPIO_Pin.close(); 
+        Pin_Handlar<<Pin_Number; 
+        Pin_Handlar.flush(); 
+        Pin_Handlar.close(); 
     }
     else
     {
@@ -120,13 +120,13 @@ void GPIO_Manage::Halt_MCU(void)
 void GPIO_Manage::Set_Pin(void)
 {
     /* Set pin high */
-    PIN_Value.open("/sys/class/gpio/gpio"+Pin_Number+"/value"); 
+    Pin_Handlar.open("/sys/class/gpio/gpio"+Pin_Number+"/value"); 
     /* Check if file is successfully opened */
-    if (PIN_Value.is_open())
+    if (Pin_Handlar.is_open())
     {
-        PIN_Value<<"1"; 
-        PIN_Value.flush(); 
-        PIN_Value.close(); 
+        Pin_Handlar<<"1"; 
+        Pin_Handlar.flush(); 
+        Pin_Handlar.close(); 
     }
     else
     {
@@ -148,13 +148,13 @@ void GPIO_Manage::Set_Pin(void)
 *****************************************************************************************************/
 void GPIO_Manage::Clear_Pin(void)
 {
-    PIN_Value.open("/sys/class/gpio/gpio" + Pin_Number + "/value"); 
+    Pin_Handlar.open("/sys/class/gpio/gpio" + Pin_Number + "/value"); 
     /* Check if file is successfully opened */
-    if (PIN_Value.is_open())
+    if (Pin_Handlar.is_open())
     {
-        PIN_Value << "0"; 
-        PIN_Value.flush(); 
-        PIN_Value.close(); 
+        Pin_Handlar << "0"; 
+        Pin_Handlar.flush(); 
+        Pin_Handlar.close(); 
     }
     else
     {
@@ -365,14 +365,34 @@ void Serial_Port::Read_Data(size_t Size)
 *****************************************************************************************************/
 unsigned char Serial_Port::Read_Data(void) 
 {
-    unsigned char Return;
-    /* Read single byte data from the serial port */
-    boost::asio::read(Port, boost::asio::buffer(&Return, 1));
+    unsigned char Return{Bootloader_State_NACK};
+    boost::asio::steady_timer Timer(Input_Output, boost::asio::chrono::seconds(1));
+    /* Perform asynchronous read with handlar */
+    boost::asio::async_read(Port, boost::asio::buffer(&Return, 1),
+    [&](const boost::system::error_code& Error_Code, std::size_t Bytes_Transferred)
+    {
+        /* Cancel the timer if data is received */
+        if (!Error_Code){Timer.cancel();}
+    }
+    );
+    /* Set up timeout handler */
+    Timer.async_wait([&](const boost::system::error_code& Error_Code) 
+    {
+        /* Cancel the asynchronous operation if timeout occurs */
+        if (!Error_Code)
+        {
+            std::cout<<"Timeout occurred: No data received within the specified time."<< std::endl;Port.cancel();
+        }
+    });
+    /* Reset the IO service */
+    Input_Output.reset();
+    /* Run the IO service */
+    Input_Output.run();
     /* Debugging information */
     #ifdef ENABLE_DEBUG
-        std::cout<<"[DEBUG] Received Frame (Char) : ";
-        std::cout<<std::hex<<"0x"<<static_cast<int>(Return)<<" ";
-        std::cout<<std::endl<<std::dec;
+        std::cout << "[DEBUG] Received Frame (Char) : ";
+        std::cout << std::hex << "0x" << static_cast<int>(Return) << " ";
+        std::cout << std::endl << std::dec;
     #endif
     return Return;
 }
@@ -921,7 +941,7 @@ void Services::Update_Buffer(void)
 *                   - It initializes the User_Interface class by inheriting from the Services class,
 *                     which handles communication with the controller.
 *****************************************************************************************************/
-User_Interface::User_Interface(const std::string& User_Interface_File,const std::string &GPIO_Manage_Pin)
+User_Interface::User_Interface(const std::string User_Interface_File,const std::string GPIO_Manage_Pin)
     :Services{User_Interface_File,GPIO_Manage_Pin}{}
 
 /****************************************************************************************************
@@ -943,7 +963,7 @@ void User_Interface::Start_Application(void)
     bool Flag{true};
     char Chosen_Option{};
     /* Initialize Default Location For Serial And GPIO */
-    User_Interface Bootloader{"/dev/ttyS0","18"};
+    User_Interface Bootloader{Serial_Driver,GPIO_Pin};
     while(Flag) 
     {
         std::cout << "++++++++++++++++++++++++++++++++++++++++\n";

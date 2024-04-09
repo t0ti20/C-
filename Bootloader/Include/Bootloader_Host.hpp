@@ -1,12 +1,12 @@
 /*******************************************************************
  *  FILE DESCRIPTION
 -----------------------
- *  Author: Khaled El-Sayed @t0ti20
- *  File: Bootloader_Host.h
- *  Date: March 28, 2024
- *  Description: Bootloader Host For STM32
- *  Namespace : Bootloader
- *  (C) 2024 "@t0ti20". All rights reserved.
+*  Author: Khaled El-Sayed @t0ti20
+*  File: Bootloader_Host.h
+*  Date: March 28, 2024
+*  Description: Bootloader Host For STM32
+*  Namespace : Bootloader
+*  (C) 2024 "@t0ti20". All rights reserved.
 *******************************************************************/
 #ifndef _BOOTLOADER_HOST_H_
 #define _BOOTLOADER_HOST_H_
@@ -24,9 +24,11 @@
 ---------    Configurations     ----------
 *****************************************/
 #define ENABLE_DEBUG                            (4)
-unsigned char constexpr Bootloader_State_ACK    {1};
-unsigned char constexpr Bootloader_State_NACK   {2};
-unsigned int constexpr Sending_Delay_MS         {100};
+constexpr unsigned char Bootloader_State_ACK    {1};
+constexpr unsigned char Bootloader_State_NACK   {2};
+constexpr unsigned int Sending_Delay_MS         {100};
+constexpr const char GPIO_Pin[]                 {"18"};
+constexpr const char Serial_Driver[]            {"/dev/ttyS0"};
 /*****************************************
 -----------    Bootloader     ------------
 *****************************************/
@@ -51,7 +53,6 @@ protected:
 *                   - It exports the specified pin, sets its direction as output, and prints error messages if any.
 *****************************************************************************************************/
 GPIO_Manage(const std::string &GPIO_Manage_Pin);
-
 /****************************************************************************************************
 * Destructor Name : ~GPIO_Manage
 * Class           : GPIO_Manage
@@ -64,7 +65,6 @@ GPIO_Manage(const std::string &GPIO_Manage_Pin);
 *                   - It unexports the specified pin and prints an error message if any.
 *****************************************************************************************************/
 ~GPIO_Manage();
-
 /****************************************************************************************************
 * Function Name   : Halt_MCU
 * Class           : GPIO_Manage
@@ -77,7 +77,6 @@ GPIO_Manage(const std::string &GPIO_Manage_Pin);
 *                   - It first sets the pin, then prints a message, and finally clears the pin.
 *****************************************************************************************************/
 void Halt_MCU(void);
-
 private:
 /****************************************************************************************************
 * Function Name   : Set_Pin
@@ -91,7 +90,6 @@ private:
 *                   - It sets the pin value to "1" to set it high and prints an error message if any.
 *****************************************************************************************************/
 void Set_Pin(void);
-
 /****************************************************************************************************
 * Function Name   : Clear_Pin
 * Class           : GPIO_Manage
@@ -107,9 +105,7 @@ void Clear_Pin(void);
 /*************** Variables **************/
 private:
 std::string Pin_Number{};
-std::ofstream GPIO_Pin;
-std::ofstream PIN_Direction;
-std::ofstream PIN_Value;
+std::ofstream Pin_Handlar;
 };
 /*****************************************
 ------------    CRC_Manage     -----------
@@ -170,7 +166,6 @@ protected:
 *                   - It also initializes the GPIO management for controlling the serial port.
 *****************************************************************************************************/
 Serial_Port(const std::string& Device_Location,const std::string &GPIO_Manage_Pin);
-
 /****************************************************************************************************
 * Function Name   : Write_Data
 * Class           : Serial_Port
@@ -183,7 +178,6 @@ Serial_Port(const std::string& Device_Location,const std::string &GPIO_Manage_Pi
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the sent frame.
 *****************************************************************************************************/
 void Write_Data(const unsigned char Data);
-
 /****************************************************************************************************
 * Function Name   : Read_Data
 * Class           : Serial_Port
@@ -196,7 +190,6 @@ void Write_Data(const unsigned char Data);
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
 *****************************************************************************************************/
 unsigned char Read_Data(void);
-
 /****************************************************************************************************
 * Function Name   : Read_Data
 * Class           : Serial_Port
@@ -210,7 +203,6 @@ unsigned char Read_Data(void);
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
 *****************************************************************************************************/
 void Read_Data(size_t Size);
-
 /****************************************************************************************************
 * Function Name   : Write_Data
 * Class           : Serial_Port
@@ -225,13 +217,12 @@ void Read_Data(size_t Size);
 *                   - Finally, it clears the data buffer.
 *****************************************************************************************************/
 void Write_Data(void);
-
 /*************** Variables **************/
 protected:
-    std::vector<unsigned char> Data_Buffer{};
+std::vector<unsigned char> Data_Buffer{};
 private:
-    boost::asio::io_service Input_Output;
-    boost::asio::serial_port Port;
+boost::asio::io_context Input_Output;
+boost::asio::serial_port Port;
 };
 /*****************************************
 ------------    Services     -------------
@@ -239,15 +230,15 @@ private:
 class Services : protected Serial_Port
 {
 private:
-    enum Bootloader_Command_t 
-    {
-        Bootloader_Command_Get_Help             =(1),
-        Bootloader_Command_Get_ID               =(2),
-        Bootloader_Command_Get_Version          =(3),
-        Bootloader_Command_Erase_Flash          =(4),
-        Bootloader_Command_Flash_Application    =(5),
-        Bootloader_Command_Address_Jump         =(6)
-    };
+enum Bootloader_Command_t 
+{
+    Bootloader_Command_Get_Help             =(1),
+    Bootloader_Command_Get_ID               =(2),
+    Bootloader_Command_Get_Version          =(3),
+    Bootloader_Command_Erase_Flash          =(4),
+    Bootloader_Command_Flash_Application    =(5),
+    Bootloader_Command_Address_Jump         =(6)
+};
 /*************** Methods ****************/
 protected:
 /****************************************************************************************************
@@ -276,7 +267,6 @@ Services(const std::string& Device_Location,const std::string &GPIO_Manage_Pin);
 *                   - It prints an error message if no acknowledgment is received after sending the get version command.
 *****************************************************************************************************/
 void Get_Version(void);
-
 /****************************************************************************************************
 * Function Name   : Get_Help
 * Class           : Services
@@ -430,7 +420,6 @@ void Update_Buffer(void);
 *                   - It returns true if the frame is sent successfully and acknowledged, otherwise returns false.
 *****************************************************************************************************/
 bool Send_Frame(Bootloader_Command_t Service);
-
 /****************************************************************************************************
 * Function Name   : Send_Frame
 * Class           : Services
@@ -446,7 +435,6 @@ bool Send_Frame(Bootloader_Command_t Service);
 *                   - It delays between sending each frame to ensure reliable communication.
 *****************************************************************************************************/
 bool Send_Frame(std::vector<unsigned char> &Data);
-
 /****************************************************************************************************
 * Function Name   : Send_Frame
 * Class           : Services
@@ -463,7 +451,6 @@ bool Send_Frame(std::vector<unsigned char> &Data);
 *                   - If no acknowledgment is received or an error occurs during transmission, it returns false.
 *****************************************************************************************************/
 bool Send_Frame(Bootloader_Command_t Service,std::vector<unsigned char> &Data);
-
 /****************************************************************************************************
 * Function Name   : Read_File
 * Class           : Services
@@ -480,10 +467,9 @@ bool Send_Frame(Bootloader_Command_t Service,std::vector<unsigned char> &Data);
 *                     and Binary_File is cleared.
 *****************************************************************************************************/
 bool Read_File(std::vector<unsigned char> &Binary_File);
-
 /*************** Variables **************/
 private:
-    std::string File_Location{"./Binary.bin"};
+std::string File_Location{"./Binary.bin"};
 };
 /*****************************************
 ---------    User Interface     ----------
@@ -506,7 +492,7 @@ public:
 *                   - It initializes the User_Interface class by inheriting from the Services class,
 *                     which handles communication with the controller.
 *****************************************************************************************************/
-User_Interface(const std::string& User_Interface_File,const std::string &GPIO_Manage_Pin);
+User_Interface(const std::string User_Interface_File,const std::string GPIO_Manage_Pin);
 /****************************************************************************************************
 * Function Name   : Start_Application
 * Class           : User_Interface
