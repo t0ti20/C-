@@ -11,13 +11,16 @@
 -----------     INCLUDES     -------------
 *****************************************/
 #include "Bootloader_Host.hpp"
+constexpr const char GPIO_Pin[]                 {"18"};
+constexpr const char Serial_Driver[]            {"/dev/ttyS0"};
 /*****************************************
 ----------   Main Application   ----------
 *****************************************/
 int main() 
 {
     using namespace Bootloader;
-    User_Interface::Start_Application();
+    User_Interface Terminal{Serial_Driver,GPIO_Pin};
+    Terminal.Start_Application();
     return 0;
 }
 /********************************************************************

@@ -271,7 +271,7 @@ Serial_Port::Serial_Port(const std::string& Device_Location,const std::string &G
 }
 
 /****************************************************************************************************
-* Function Name   : Write_Data
+* Function Name   : Send_Data
 * Class           : Serial_Port
 * Namespace       : Bootloader
 * Description     : Writes data to the serial port after appending data length and CRC.
@@ -283,7 +283,7 @@ Serial_Port::Serial_Port(const std::string& Device_Location,const std::string &G
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the sent frame.
 *                   - Finally, it clears the data buffer.
 *****************************************************************************************************/
-void Serial_Port::Write_Data(void)
+void Serial_Port::Send_Data(void)
 {
     /* Insert data length at the beginning of the buffer */
     Data_Buffer.insert(Data_Buffer.begin(), Data_Buffer.size() + 4);
@@ -302,7 +302,7 @@ void Serial_Port::Write_Data(void)
 }
 
 /****************************************************************************************************
-* Function Name   : Write_Data
+* Function Name   : Send_Data
 * Class           : Serial_Port
 * Namespace       : Bootloader
 * Description     : Writes a single byte of data to the serial port.
@@ -312,7 +312,7 @@ void Serial_Port::Write_Data(void)
 * Notes           : - This function writes a single byte of data to the serial port using asynchronous write operation.
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the sent frame.
 *****************************************************************************************************/
-void Serial_Port::Write_Data(const unsigned char Data) 
+void Serial_Port::Send_Data(const unsigned char Data) 
 {
     /* Write single byte data to the serial port */
     boost::asio::write(Port, boost::asio::buffer(&Data, 1));
@@ -325,7 +325,7 @@ void Serial_Port::Write_Data(const unsigned char Data)
 }
 
 /****************************************************************************************************
-* Function Name   : Read_Data
+* Function Name   : Receive_Data
 * Class           : Serial_Port
 * Namespace       : Bootloader
 * Description     : Reads data from the serial port into the data buffer.
@@ -336,7 +336,7 @@ void Serial_Port::Write_Data(const unsigned char Data)
 *                     and then reverses the order of bytes in the buffer.
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
 *****************************************************************************************************/
-void Serial_Port::Read_Data(size_t Size)
+void Serial_Port::Receive_Data(size_t Size)
 {
     /* Resize data buffer */
     Data_Buffer.resize(Size);
@@ -353,7 +353,7 @@ void Serial_Port::Read_Data(size_t Size)
 }
 
 /****************************************************************************************************
-* Function Name   : Read_Data
+* Function Name   : Receive_Data
 * Class           : Serial_Port
 * Namespace       : Bootloader
 * Description     : Reads a single byte of data from the serial port.
@@ -363,7 +363,7 @@ void Serial_Port::Read_Data(size_t Size)
 * Notes           : - This function reads a single byte of data from the serial port using asynchronous read operation.
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
 *****************************************************************************************************/
-unsigned char Serial_Port::Read_Data(void) 
+unsigned char Serial_Port::Receive_Data(void) 
 {
     unsigned char Return{Bootloader_State_NACK};
     boost::asio::steady_timer Timer(Input_Output, boost::asio::chrono::seconds(1));
@@ -425,8 +425,8 @@ bool Services::Send_Frame(Bootloader_Command_t Service, std::vector<unsigned cha
     Data_Buffer.push_back(Service); 
     /* Copy Data into Data_Buffer */
     std::copy(Data.begin(), Data.end(), std::back_inserter(Data_Buffer)); 
-    /* Call Write_Data function */
-    Write_Data(); 
+    /* Call Send_Data function */
+    Send_Data(); 
     /* Check if acknowledgement is received */
     if (Get_Acknowledge()) 
     {
@@ -436,6 +436,7 @@ bool Services::Send_Frame(Bootloader_Command_t Service, std::vector<unsigned cha
     /* Return Result */
     return Result; 
 }
+
 /****************************************************************************************************
 * Function Name   : Read_File
 * Class           : Services
@@ -505,8 +506,8 @@ bool Services::Send_Frame(Bootloader_Command_t Service)
     Data_Buffer.clear();
     /* Push Service into Data_Buffer */
     Data_Buffer.push_back(Service);
-    /* Call Write_Data function */
-    Write_Data();
+    /* Call Send_Data function */
+    Send_Data();
     /* Check if acknowledgement is received */
     if (Get_Acknowledge())
     {
@@ -559,6 +560,9 @@ void Services::Get_Help(void)
                     break;
                 case Bootloader_Command_Address_Jump:
                     std::cout<<"- (0x"<<static_cast<int>(Command)<<") Jumb On Specific Address."<<std::endl;
+                    break;               
+                case Bootloader_Command_Say_Hi:
+                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Say Hello To Chip."<<std::endl;
                     break;
                 default:
                     std::cout<<"- (0x"<<static_cast<int>(Command)<<") Unknown New Feature"<<std::endl;
@@ -626,8 +630,8 @@ bool Services::Send_Frame(std::vector<unsigned char> &Data)
         Data_Buffer.clear();
         /* Copy data into Data_Buffer, maximum 250 bytes */
         std::copy(Data.begin(), Data.size() >= 250 ? Data.begin() + 250 : Data.end(), std::back_inserter(Data_Buffer));
-        /* Call Write_Data function */
-        Write_Data();
+        /* Call Send_Data function */
+        Send_Data();
         /* Check if acknowledgment is not received */
         if(!Get_Acknowledge())
         {
@@ -723,6 +727,7 @@ void Services::Flash_Application(void)
     {
         /* Flash application */
         Flash_Application(Start_Page, Payload);
+        Halt_MCU();
     }
     else
     {
@@ -884,7 +889,7 @@ void Services::Get_ID(void)
 * Notes           : - This constructor initializes services with a serial port and GPIO pin for control.
 *                   - It initializes the Serial_Port base class with the provided device location and GPIO pin.
 *****************************************************************************************************/
-Services::Services(const std::string& Device_Location,const std::string &GPIO_Manage_Pin)
+Services::Services(const std::string &Device_Location,const std::string &GPIO_Manage_Pin)
 :Serial_Port{Device_Location,GPIO_Manage_Pin}{}
 
 /****************************************************************************************************
@@ -901,7 +906,7 @@ Services::Services(const std::string& Device_Location,const std::string &GPIO_Ma
 bool Services::Get_Acknowledge(void)
 {
     /* Check if received data is ACK */
-    return Read_Data() == Bootloader_State_ACK ? true : false;
+    return Receive_Data() == Bootloader_State_ACK ? true : false;
 }
 
 /****************************************************************************************************
@@ -919,11 +924,54 @@ void Services::Update_Buffer(void)
 {
     unsigned char Data_Size{};
     /* Read data size */
-    Data_Size = Read_Data();
+    Data_Size = Receive_Data();
     /* Read data based on size */
-    Read_Data(Data_Size);
+    Receive_Data(Data_Size);
 }
 
+
+
+void Services::Exit_Bootloader(void)
+{
+    unsigned int Address{Booting_Flag};
+    unsigned int Data{};
+    Write_Data(Address,Data);
+}
+void Services::Write_Data(void)
+{
+    unsigned int Address{};
+    unsigned int Data{};
+    /* Prompt user to enter start page */
+    std::cout<<"- Please Enter Desired Address In HEX : 0x";
+    std::cin>>std::hex>>Address>>std::dec;
+    /* Prompt user to enter total number of pages to erase */
+    std::cout<<"- Please Enter Data To Write In HEX : 0x";
+    std::cin>>std::hex>>Data>>std::dec;
+    /* Erase flash */
+    Write_Data(Address, Data);
+}
+void Services::Write_Data(unsigned int &Address,unsigned int &Data)
+{
+    std::vector<unsigned char> Sending_Bytes(sizeof(Address) + sizeof(Data));
+    std::memcpy(Sending_Bytes.data(), &Address, sizeof(Address));
+    std::memcpy(Sending_Bytes.data() + sizeof(Address), &Data, sizeof(Data));
+
+    /* Send erase flash command */
+    if(Send_Frame(Bootloader_Command_Send_Data, Sending_Bytes))
+    {
+        /* Print message if erasing is done successfully */
+        std::cout<<"Writing Done Successfully"<<std::endl;
+    }
+    else
+    {
+        /* Print error message if no acknowledgment received after sending erase pages */
+        std::cout<<"There Is No ACK After Sending Writing Data"<<std::endl;
+    }
+}
+bool Services::Say_Hi(void)
+{
+    return Send_Frame(Bootloader_Command_Say_Hi);
+}
 /*****************************************
 ---------    User Interface     ----------
 *****************************************/
@@ -941,7 +989,7 @@ void Services::Update_Buffer(void)
 *                   - It initializes the User_Interface class by inheriting from the Services class,
 *                     which handles communication with the controller.
 *****************************************************************************************************/
-User_Interface::User_Interface(const std::string User_Interface_File,const std::string GPIO_Manage_Pin)
+User_Interface::User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin)
     :Services{User_Interface_File,GPIO_Manage_Pin}{}
 
 /****************************************************************************************************
@@ -958,24 +1006,54 @@ User_Interface::User_Interface(const std::string User_Interface_File,const std::
 *                   - User input is taken to select different options, and corresponding actions
 *                     are executed based on the chosen option.
 *****************************************************************************************************/
+void User_Interface::Print_Target_Info(bool State)
+{
+    if(State)
+    {
+        std::cout << "\033[1;32m";
+        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout << "++++++++++++ Target Detected +++++++++++\n";
+        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
+        Get_Version();
+        Get_ID();
+        std::cout << "\033[0m";
+    }
+    else
+    {
+        std::cout << "\033[1;31m";
+        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout << "+++++++++ Failed To Find Target ++++++++\n";
+        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout << "\033[0m";
+    }
+}
+User_Interface::~User_Interface()
+{
+    if(Say_Hi())
+    {
+        Exit_Bootloader();
+    }
+}
 void User_Interface::Start_Application(void)
 {
     bool Flag{true};
     char Chosen_Option{};
     /* Initialize Default Location For Serial And GPIO */
-    User_Interface Bootloader{Serial_Driver,GPIO_Pin};
-    while(Flag) 
-    {
+    Halt_MCU();
+    std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
+    Print_Target_Info(Say_Hi());
+    while(Flag)
+    {        
         std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
         std::cout << "Options:" << std::endl;
-        std::cout << "1. Get Version." << std::endl;
+        std::cout << "1. Get ID." << std::endl;
         std::cout << "2. Get Help." << std::endl;
-        std::cout << "3. Get ID." << std::endl;
-        std::cout << "4. Jump Address." << std::endl;
+        std::cout << "3. Write Data." << std::endl;
+        std::cout << "4. Get Version." << std::endl;
         std::cout << "5. Erase Flash." << std::endl;
-        std::cout << "6. Flash Application." << std::endl;
-        std::cout << "7. Start Bootloader On Target." << std::endl;
-        std::cout << "8. Exit." << std::endl;
+        std::cout << "6. Jump Address." << std::endl;
+        std::cout << "7. Flash Application." << std::endl;
+        std::cout << "9. Exit." << std::endl;
         std::cout << "Enter Option : ";
         /* Scan The Input By User */
         std::cin >> Chosen_Option;
@@ -983,18 +1061,17 @@ void User_Interface::Start_Application(void)
         /* Jump For The Option */
         switch (Chosen_Option)
         {
-            case '1':Bootloader.Get_Version();break;
-            case '2':Bootloader.Get_Help();break;
-            case '3':Bootloader.Get_ID();break;
-            case '4':Bootloader.Jump_Address();break;
-            case '5':Bootloader.Erase_Flash();break;
-            case '6':Bootloader.Flash_Application();break;
-            case '7':Bootloader.Halt_MCU();break;
-            case '8':Flag=false;break;
+            case '4':Get_Version();break;
+            case '2':Get_Help();break;
+            case '3':Write_Data();break;
+            case '1':Get_ID();break;
+            case '6':Jump_Address();break;
+            case '5':Erase_Flash();break;
+            case '7':Flash_Application();break;
+            case '9':Flag=false;break;
         }
     }
 }
-
 }
 /********************************************************************
  *  END OF FILE:  Driver.cpp 

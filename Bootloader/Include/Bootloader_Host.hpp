@@ -23,12 +23,11 @@
 /*****************************************
 ---------    Configurations     ----------
 *****************************************/
-#define ENABLE_DEBUG                            (4)
+//#define ENABLE_DEBUG                            (4)
 constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
 constexpr unsigned int Sending_Delay_MS         {100};
-constexpr const char GPIO_Pin[]                 {"18"};
-constexpr const char Serial_Driver[]            {"/dev/ttyS0"};
+constexpr unsigned int Booting_Flag             {0x8007FFC};
 /*****************************************
 -----------    Bootloader     ------------
 *****************************************/
@@ -167,7 +166,7 @@ protected:
 *****************************************************************************************************/
 Serial_Port(const std::string& Device_Location,const std::string &GPIO_Manage_Pin);
 /****************************************************************************************************
-* Function Name   : Write_Data
+* Function Name   : Send_Data
 * Class           : Serial_Port
 * Namespace       : Bootloader
 * Description     : Writes a single byte of data to the serial port.
@@ -177,9 +176,9 @@ Serial_Port(const std::string& Device_Location,const std::string &GPIO_Manage_Pi
 * Notes           : - This function writes a single byte of data to the serial port using asynchronous write operation.
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the sent frame.
 *****************************************************************************************************/
-void Write_Data(const unsigned char Data);
+void Send_Data(const unsigned char Data);
 /****************************************************************************************************
-* Function Name   : Read_Data
+* Function Name   : Receive_Data
 * Class           : Serial_Port
 * Namespace       : Bootloader
 * Description     : Reads a single byte of data from the serial port.
@@ -189,9 +188,9 @@ void Write_Data(const unsigned char Data);
 * Notes           : - This function reads a single byte of data from the serial port using asynchronous read operation.
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
 *****************************************************************************************************/
-unsigned char Read_Data(void);
+unsigned char Receive_Data(void);
 /****************************************************************************************************
-* Function Name   : Read_Data
+* Function Name   : Receive_Data
 * Class           : Serial_Port
 * Namespace       : Bootloader
 * Description     : Reads data from the serial port into the data buffer.
@@ -202,9 +201,9 @@ unsigned char Read_Data(void);
 *                     and then reverses the order of bytes in the buffer.
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
 *****************************************************************************************************/
-void Read_Data(size_t Size);
+void Receive_Data(size_t Size);
 /****************************************************************************************************
-* Function Name   : Write_Data
+* Function Name   : Send_Data
 * Class           : Serial_Port
 * Namespace       : Bootloader
 * Description     : Writes data to the serial port after appending data length and CRC.
@@ -216,7 +215,7 @@ void Read_Data(size_t Size);
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the sent frame.
 *                   - Finally, it clears the data buffer.
 *****************************************************************************************************/
-void Write_Data(void);
+void Send_Data(void);
 /*************** Variables **************/
 protected:
 std::vector<unsigned char> Data_Buffer{};
@@ -237,7 +236,9 @@ enum Bootloader_Command_t
     Bootloader_Command_Get_Version          =(3),
     Bootloader_Command_Erase_Flash          =(4),
     Bootloader_Command_Flash_Application    =(5),
-    Bootloader_Command_Address_Jump         =(6)
+    Bootloader_Command_Address_Jump         =(6),
+    Bootloader_Command_Say_Hi               =(7),
+    Bootloader_Command_Send_Data           =(8)
 };
 /*************** Methods ****************/
 protected:
@@ -253,7 +254,7 @@ protected:
 * Notes           : - This constructor initializes services with a serial port and GPIO pin for control.
 *                   - It initializes the Serial_Port base class with the provided device location and GPIO pin.
 *****************************************************************************************************/
-Services(const std::string& Device_Location,const std::string &GPIO_Manage_Pin);
+Services(const std::string &Device_Location,const std::string &GPIO_Manage_Pin);
 /****************************************************************************************************
 * Function Name   : Get_Version
 * Class           : Services
@@ -362,7 +363,7 @@ void Jump_Address(unsigned int &Address);
 *                   - It prints a message if erasing is done successfully, otherwise, it prints an error message
 *                     if no acknowledgment is received after sending the erase pages command.
 *****************************************************************************************************/
-void Erase_Flash(unsigned int &Start_Page,unsigned int &Pages_Count);
+void Erase_Flash(unsigned int &Start_Page, unsigned int &Pages_Count);
 /****************************************************************************************************
 * Function Name   : Flash_Application
 * Class           : Services
@@ -381,6 +382,12 @@ void Erase_Flash(unsigned int &Start_Page,unsigned int &Pages_Count);
 *                     or if no acknowledgment is received after sending the payload.
 *****************************************************************************************************/
 void Flash_Application(unsigned int &Start_Page,std::vector<unsigned char> &Payload);
+
+void Write_Data(void);
+void Write_Data(unsigned int &Address,unsigned int &Data);
+void Exit_Bootloader(void);
+
+bool Say_Hi(void);
 private:
 /****************************************************************************************************
 * Function Name   : Get_Acknowledge
@@ -492,7 +499,8 @@ public:
 *                   - It initializes the User_Interface class by inheriting from the Services class,
 *                     which handles communication with the controller.
 *****************************************************************************************************/
-User_Interface(const std::string User_Interface_File,const std::string GPIO_Manage_Pin);
+User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin);
+~User_Interface();
 /****************************************************************************************************
 * Function Name   : Start_Application
 * Class           : User_Interface
@@ -507,7 +515,8 @@ User_Interface(const std::string User_Interface_File,const std::string GPIO_Mana
 *                   - User input is taken to select different options, and corresponding actions
 *                     are executed based on the chosen option.
 *****************************************************************************************************/
-static void Start_Application(void);
+void Start_Application(void);
+void Print_Target_Info(bool State);
 };
 }
 /********************************************************************
