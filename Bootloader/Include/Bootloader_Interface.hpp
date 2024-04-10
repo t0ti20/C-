@@ -23,7 +23,7 @@
 /*****************************************
 ---------    Configurations     ----------
 *****************************************/
-//#define ENABLE_DEBUG                            (4)
+#define ENABLE_DEBUG                            (4)
 constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
 constexpr unsigned int Sending_Delay_MS         {100};

@@ -710,6 +710,7 @@ bool Services::Flash_Application(unsigned int &Start_Page, std::vector<unsigned 
 void Services::Flash_Application(void)
 {
     bool Animation_Running{true};
+    std::vector<unsigned char> Payload{};
     auto Loading = [&Animation_Running]() 
     {
         const char Animation[] = {'|', '/', '-', '\\'};
@@ -724,7 +725,6 @@ void Services::Flash_Application(void)
     };
     unsigned int Start_Page{};
     std::string Input{};
-    std::vector<unsigned char> Payload{};
     /* Prompt user to enter start page */
     std::cout<<Yellow<<" -> "<<Default<<"Please Enter Start Page : ";
     std::cin>>Start_Page;
@@ -747,10 +747,10 @@ void Services::Flash_Application(void)
         {
             Animation_Running=false;
             Animation_Thread.join();
-            std::cout<<Green<<"=============================== "<<Default<<"Done Sending Payload Frame"<<Green<<" ==============================="<<std::endl;
+            std::cout<<Green<<"=============================== "<<Default<<"Done Sending Payload Frame"<<Green<<" ===============================\n";
             Halt_MCU();
         }
-        else{std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;}
+        else{std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";}
     }
     else
     {
@@ -1126,6 +1126,8 @@ void Monitor::Start_Monitoring(void)
         {
             std::cout << "Start Monitoring For Any Updates\n";
             Get_Update();
+            Interface.Start_Target_Bootloader();
+            std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
             if(Interface.Say_Hi())
             {
                 std::cout << "Flashing !!!\n";
@@ -1216,7 +1218,7 @@ User_Interface::~User_Interface()
 void User_Interface::Start_Application(void)
 {
     bool Flag{true};
-    char Chosen_Option{};
+    std::string Chosen_Option{};
     /* Initialize Default Location For Serial And GPIO */
     Start_Target_Bootloader();
     std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
@@ -1253,7 +1255,7 @@ void User_Interface::Start_Application(void)
         std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
         std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
         /* Jump For The Option */
-        switch (Chosen_Option)
+        switch (Chosen_Option[0])
         {
             case '4':Get_Version();break;
             case '2':Get_Help();break;
@@ -1268,7 +1270,8 @@ void User_Interface::Start_Application(void)
         std::cout<<Green;
         std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
         std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
-        std::this_thread::sleep_for(std::chrono::seconds(4)); 
+        std::cin.ignore();
+        std::getline(std::cin, Chosen_Option);
         if(system("clear")){};
     }
 }
