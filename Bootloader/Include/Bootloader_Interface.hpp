@@ -8,8 +8,8 @@
 *  Namespace : Bootloader
 *  (C) 2024 "@t0ti20". All rights reserved.
 *******************************************************************/
-#ifndef _BOOTLOADER_HOST_H_
-#define _BOOTLOADER_HOST_H_
+#ifndef _BOOTLOADER_INTERFACE_H_
+#define _BOOTLOADER_INTERFACE_H_
 /******************************************************************/
 /*****************************************
 ------------    Includes     -------------
@@ -27,6 +27,7 @@
 constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
 constexpr unsigned int Sending_Delay_MS         {100};
+constexpr unsigned int Get_Update_Time_Seconds  {5};
 constexpr unsigned int Booting_Flag             {0x8007FFC};
 /*****************************************
 -----------    Bootloader     ------------
@@ -188,7 +189,7 @@ void Send_Data(const unsigned char Data);
 * Notes           : - This function reads a single byte of data from the serial port using asynchronous read operation.
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
 *****************************************************************************************************/
-unsigned char Receive_Data(void);
+bool Receive_Data(unsigned char &Data);
 /****************************************************************************************************
 * Function Name   : Receive_Data
 * Class           : Serial_Port
@@ -268,6 +269,7 @@ Services(const std::string &Device_Location,const std::string &GPIO_Manage_Pin);
 *                   - It prints an error message if no acknowledgment is received after sending the get version command.
 *****************************************************************************************************/
 void Get_Version(void);
+bool Get_Version(unsigned int &ID,unsigned int &Major,unsigned int &Minor);
 /****************************************************************************************************
 * Function Name   : Get_Help
 * Class           : Services
@@ -294,6 +296,7 @@ void Get_Help(void);
 *                   - If no acknowledgment is received, it prints an error message.
 *****************************************************************************************************/
 void Get_ID(void);
+bool Get_ID(std::vector<unsigned int> &Built_ID);
 /****************************************************************************************************
 * Function Name   : Jump_Address
 * Class           : Services
@@ -347,7 +350,7 @@ void Flash_Application(void);
 *                   - It prints a message if jumping is done successfully, otherwise, it prints an error message
 *                     if no acknowledgment is received after sending the jump address.
 *****************************************************************************************************/
-void Jump_Address(unsigned int &Address);
+bool Jump_Address(unsigned int &Address);
 /****************************************************************************************************
 * Function Name   : Erase_Flash
 * Class           : Services
@@ -363,7 +366,7 @@ void Jump_Address(unsigned int &Address);
 *                   - It prints a message if erasing is done successfully, otherwise, it prints an error message
 *                     if no acknowledgment is received after sending the erase pages command.
 *****************************************************************************************************/
-void Erase_Flash(unsigned int &Start_Page, unsigned int &Pages_Count);
+bool Erase_Flash(unsigned int &Start_Page, unsigned int &Pages_Count);
 /****************************************************************************************************
 * Function Name   : Flash_Application
 * Class           : Services
@@ -381,10 +384,10 @@ void Erase_Flash(unsigned int &Start_Page, unsigned int &Pages_Count);
 *                     otherwise, it prints an error message if an error occurs while sending frames
 *                     or if no acknowledgment is received after sending the payload.
 *****************************************************************************************************/
-void Flash_Application(unsigned int &Start_Page,std::vector<unsigned char> &Payload);
+bool Flash_Application(unsigned int &Start_Page,std::vector<unsigned char> &Payload);
 
 void Write_Data(void);
-void Write_Data(unsigned int &Address,unsigned int &Data);
+bool Write_Data(unsigned int &Address,unsigned int &Data);
 void Exit_Bootloader(void);
 
 bool Say_Hi(void);
@@ -478,10 +481,45 @@ bool Read_File(std::vector<unsigned char> &Binary_File);
 private:
 std::string File_Location{"./Binary.bin"};
 };
+
+
+
+
+
+
+
+
+
+/*****************************************
+--------------   Monitor   ---------------
+*****************************************/
+class Monitor
+{
+/*************** Methods ****************/
+public:
+Monitor(const std::string &Repository_Path,std::vector<std::string> &Arguments);
+void Start_Monitoring();
+private:
+bool Check_For_Update(void);
+void Get_Update(void);
+/************** Variables ***************/
+private:
+std::string Binary_Repository{};
+std::vector<std::string> &Commands;
+};
+
+
+
+
+
+
+
+
+
 /*****************************************
 ---------    User Interface     ----------
 *****************************************/
-class User_Interface : private Services
+class User_Interface : private Services , public Monitor
 {
 /*************** Methods ****************/
 public:
@@ -499,7 +537,7 @@ public:
 *                   - It initializes the User_Interface class by inheriting from the Services class,
 *                     which handles communication with the controller.
 *****************************************************************************************************/
-User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin);
+User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,std::vector<std::string> &Arguments);
 ~User_Interface();
 /****************************************************************************************************
 * Function Name   : Start_Application

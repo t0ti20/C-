@@ -2,19 +2,24 @@
  *  FILE DESCRIPTION
 -----------------------
  *  Author: Khaled El-Sayed @t0ti20
- *  File: Driver.cpp
+ *  File: Bootloader_Interface.cpp
  *  Date: March 28, 2024
- *  Description: This Is Default Test File For CPP Generator
- *  Class Name: Driver
+ *  Description: Interface File Fot Bootloader Functionality
+ *  Namespace: Bootloader
  *  (C) 2023 "@t0ti20". All rights reserved.
 *******************************************************************/
 /*****************************************
 -----------     INCLUDES     -------------
 *****************************************/
-#include "Bootloader_Host.hpp"
+#include "Bootloader_Interface.hpp"
 /*****************************************
 ----------    GLOBAL DATA     ------------
 *****************************************/
+constexpr const char Red[] = "\033[1;31m";
+constexpr const char Green[] = "\033[1;32m";
+constexpr const char Yellow[] = "\033[1;33m";
+constexpr const char Blue[] = "\033[1;34m";
+constexpr const char Default[] = "\033[0m";
 namespace Bootloader
 {
 /*****************************************
@@ -101,8 +106,6 @@ void GPIO_Manage::Halt_MCU(void)
 {
     /* Toggle Pin To Generate Interrupt Tp Run Bootloader Application */
     Set_Pin();
-    /* Print message */
-    std::cout << "Done Triggering." << std::endl;
     Clear_Pin();
 }
 
@@ -363,12 +366,12 @@ void Serial_Port::Receive_Data(size_t Size)
 * Notes           : - This function reads a single byte of data from the serial port using asynchronous read operation.
 *                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
 *****************************************************************************************************/
-unsigned char Serial_Port::Receive_Data(void) 
+bool Serial_Port::Receive_Data(unsigned char &Data)
 {
-    unsigned char Return{Bootloader_State_NACK};
+    bool Status{true};
     boost::asio::steady_timer Timer(Input_Output, boost::asio::chrono::seconds(1));
     /* Perform asynchronous read with handlar */
-    boost::asio::async_read(Port, boost::asio::buffer(&Return, 1),
+    boost::asio::async_read(Port, boost::asio::buffer(&Data, 1),
     [&](const boost::system::error_code& Error_Code, std::size_t Bytes_Transferred)
     {
         /* Cancel the timer if data is received */
@@ -379,10 +382,7 @@ unsigned char Serial_Port::Receive_Data(void)
     Timer.async_wait([&](const boost::system::error_code& Error_Code) 
     {
         /* Cancel the asynchronous operation if timeout occurs */
-        if (!Error_Code)
-        {
-            std::cout<<"Timeout occurred: No data received within the specified time."<< std::endl;Port.cancel();
-        }
+        if (!Error_Code){Status=false;Port.cancel();}
     });
     /* Reset the IO service */
     Input_Output.reset();
@@ -391,10 +391,10 @@ unsigned char Serial_Port::Receive_Data(void)
     /* Debugging information */
     #ifdef ENABLE_DEBUG
         std::cout << "[DEBUG] Received Frame (Char) : ";
-        std::cout << std::hex << "0x" << static_cast<int>(Return) << " ";
+        std::cout << std::hex << "0x" << static_cast<int>(Data) << " ";
         std::cout << std::endl << std::dec;
     #endif
-    return Return;
+    return Status;
 }
 
 /*****************************************
@@ -544,28 +544,28 @@ void Services::Get_Help(void)
             switch (Command)
             {
                 case Bootloader_Command_Get_Help:
-                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Get Help."<<std::endl;
+                    std::cout<<Yellow<<" -> (0x"<<static_cast<int>(Command)<<")"<<Default<<" Get Help."<<std::endl;
                     break;
                 case Bootloader_Command_Get_ID:
-                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Get ID."<<std::endl;
+                    std::cout<<Yellow<<" -> (0x"<<static_cast<int>(Command)<<")"<<Default<<" Get ID."<<std::endl;
                     break;
                 case Bootloader_Command_Get_Version:
-                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Get Version."<<std::endl;
+                    std::cout<<Yellow<<" -> (0x"<<static_cast<int>(Command)<<")"<<Default<<" Get Version."<<std::endl;
                     break;
                 case Bootloader_Command_Erase_Flash:
-                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Erase Current Flash."<<std::endl;
+                    std::cout<<Yellow<<" -> (0x"<<static_cast<int>(Command)<<")"<<Default<<" Erase Current Flash."<<std::endl;
                     break;
                 case Bootloader_Command_Flash_Application:
-                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Write On Flash."<<std::endl;
+                    std::cout<<Yellow<<" -> (0x"<<static_cast<int>(Command)<<")"<<Default<<" Write On Flash."<<std::endl;
                     break;
                 case Bootloader_Command_Address_Jump:
-                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Jumb On Specific Address."<<std::endl;
+                    std::cout<<Yellow<<" -> (0x"<<static_cast<int>(Command)<<")"<<Default<<" Jumb On Specific Address."<<std::endl;
                     break;               
                 case Bootloader_Command_Say_Hi:
-                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Say Hello To Chip."<<std::endl;
+                    std::cout<<Yellow<<" -> (0x"<<static_cast<int>(Command)<<")"<<Default<<" Say Hello To Chip."<<std::endl;
                     break;
                 default:
-                    std::cout<<"- (0x"<<static_cast<int>(Command)<<") Unknown New Feature"<<std::endl;
+                    std::cout<<Yellow<<" -> (0x"<<static_cast<int>(Command)<<")"<<Default<<" Unknown New Feature"<<std::endl;
                     break;
             }
         }
@@ -573,7 +573,7 @@ void Services::Get_Help(void)
     else
     {
         /* Print error message if no acknowledgment received */
-        std::cout<<"There Is No ACK From Controller On Get Help Frame"<<std::endl;
+        std::cout<<Red<<"X) There Is No ACK From Controller On Get Help Frame"<<std::endl;
     }
 }
 
@@ -589,20 +589,35 @@ void Services::Get_Help(void)
 *                   - It retrieves chip ID, major, and minor version from the received data buffer and prints them.
 *                   - It prints an error message if no acknowledgment is received after sending the get version command.
 *****************************************************************************************************/
-void Services::Get_Version(void)
+bool Services::Get_Version(unsigned int &ID,unsigned int &Major,unsigned int &Minor)
 {
-    /* Check if Get_Version frame is sent successfully */
+    bool Status{};
     if(Send_Frame(Bootloader_Command_Get_Version))
     {
+        ID=static_cast<int>(Data_Buffer[0]);
+        Major=static_cast<int>(Data_Buffer[1]);
+        Minor=static_cast<int>(Data_Buffer[2]);
+        Status=true;
+    }
+    return Status;
+}
+void Services::Get_Version(void)
+{
+    unsigned int ID{};
+    unsigned int Major{};
+    unsigned int Minor{};
+    /* Check if Get_Version frame is sent successfully */
+    if(Get_Version(ID,Major,Minor))
+    {
         /* Print Chip ID, Major, and Minor version */
-        std::cout<<"Chip ID : "<<static_cast<int>(Data_Buffer[0])<<std::endl;
-        std::cout<<"Major : "<<static_cast<int>(Data_Buffer[1])<<std::endl;
-        std::cout<<"Minor : "<<static_cast<int>(Data_Buffer[2])<<std::endl;
+        std::cout<<Yellow<<" -> "<<"Chip ID : "<<Default<<ID<<std::endl;
+        std::cout<<Yellow<<" -> "<<"Major : "<<Default<<Major<<std::endl;
+        std::cout<<Yellow<<" -> "<<"Minor : "<<Default<<Minor<<std::endl;
     }
     else
     {
         /* Print error message if no acknowledgment received */
-        std::cout<<"There Is No ACK From Controller On Get Version Frame"<<std::endl;
+        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"There Is No ACK From Controller On Get Version Frame"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;
     }
 }
 
@@ -665,30 +680,18 @@ bool Services::Send_Frame(std::vector<unsigned char> &Data)
 *                     otherwise, it prints an error message if an error occurs while sending frames
 *                     or if no acknowledgment is received after sending the payload.
 *****************************************************************************************************/
-void Services::Flash_Application(unsigned int &Start_Page, std::vector<unsigned char> &Payload)
+bool Services::Flash_Application(unsigned int &Start_Page, std::vector<unsigned char> &Payload)
 {
+    bool Status{};
     /* Prepare data bytes */
     std::vector<unsigned char> Data_Bytes{static_cast<unsigned char>(Start_Page), static_cast<unsigned char>((Payload.size() / 250) + 1)};
     /* Send flash application command */
     if(Send_Frame(Bootloader_Command_Flash_Application, Data_Bytes))
     {
         /* Send payload */
-        if(Send_Frame(Payload))
-        {
-            /* Print message if payload frame sent successfully */
-            std::cout<<"Done Sending Payload Frame"<<std::endl;
-        }
-        else
-        {
-            /* Print error message if error occurred while sending frames */
-            std::cout<<"Error In Sending Frames"<<std::endl;
-        }
+        if(Send_Frame(Payload)){Status=true;}
     }
-    else
-    {
-        /* Print error message if no acknowledgment received after payload */
-        std::cout<<"There Is No ACK After Payload"<<std::endl;
-    }
+    return Status;
 }
 
 /****************************************************************************************************
@@ -706,33 +709,55 @@ void Services::Flash_Application(unsigned int &Start_Page, std::vector<unsigned 
 *****************************************************************************************************/
 void Services::Flash_Application(void)
 {
+    bool Animation_Running{true};
+    auto Loading = [&Animation_Running]() 
+    {
+        const char Animation[] = {'|', '/', '-', '\\'};
+        int Counter {};
+        while (Animation_Running)
+        {
+            std::cout<<Yellow<<"\r"<<" -> "<<Green<<Animation[Counter]<<Default<<" Loading "<<Green<<Animation[Counter]<<std::flush;
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            Counter=(Counter+1)%4;
+        }
+        std::cout<<std::endl;
+    };
     unsigned int Start_Page{};
     std::string Input{};
     std::vector<unsigned char> Payload{};
     /* Prompt user to enter start page */
-    std::cout<<"- Please Enter Start Page : ";
+    std::cout<<Yellow<<" -> "<<Default<<"Please Enter Start Page : ";
     std::cin>>Start_Page;
     /* Prompt user to edit file location */
-    std::cout<<"- Binary File Location ["<<this->File_Location<<"] Want To Edit [N/y] : ";
+    std::cout<<Yellow<<" -> "<<Default<<"Binary File Location ["<<this->File_Location<<"] Want To Edit [N/y] : ";
     std::cin.ignore();
     std::getline(std::cin, Input);
     /* If user wants to edit file location */
     if (!Input.empty() && (Input == "y" || Input == "Y"))
     {
-        std::cout<<"- Please Enter File Location : ";
+        std::cout<<Yellow<<" -> "<<Default<<"Please Enter File Location : ";
         std::cin>>this->File_Location;
     }
+    std::thread Animation_Thread(Loading);
     /* Read binary file */
     if (Read_File(Payload))
     {
         /* Flash application */
-        Flash_Application(Start_Page, Payload);
-        Halt_MCU();
+        if(Flash_Application(Start_Page, Payload))
+        {
+            Animation_Running=false;
+            Animation_Thread.join();
+            std::cout<<Green<<"=============================== "<<Default<<"Done Sending Payload Frame"<<Green<<" ==============================="<<std::endl;
+            Halt_MCU();
+        }
+        else{std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;}
     }
     else
     {
+        Animation_Running=false;
+        Animation_Thread.join();
         /* Print error message if unable to read the binary file */
-        std::cout << "Error: Unable to read the binary file." << std::endl;
+        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error: Unable to read the binary file"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;
     }
 }
 
@@ -751,21 +776,14 @@ void Services::Flash_Application(void)
 *                   - It prints a message if erasing is done successfully, otherwise, it prints an error message
 *                     if no acknowledgment is received after sending the erase pages command.
 *****************************************************************************************************/
-void Services::Erase_Flash(unsigned int &Start_Page, unsigned int &Pages_Count)
+bool Services::Erase_Flash(unsigned int &Start_Page, unsigned int &Pages_Count)
 {
+    bool State{};
     /* Prepare data bytes */
     std::vector<unsigned char> Data_Bytes{static_cast<unsigned char>(Start_Page), static_cast<unsigned char>(Pages_Count)};
     /* Send erase flash command */
-    if(Send_Frame(Bootloader_Command_Erase_Flash, Data_Bytes))
-    {
-        /* Print message if erasing is done successfully */
-        std::cout<<"Erasing Done Successfully"<<std::endl;
-    }
-    else
-    {
-        /* Print error message if no acknowledgment received after sending erase pages */
-        std::cout<<"There Is No ACK After Sending Eraseing Pages"<<std::endl;
-    }
+    if(Send_Frame(Bootloader_Command_Erase_Flash, Data_Bytes)){State=true;}
+    return State;
 }
 
 /****************************************************************************************************
@@ -786,13 +804,22 @@ void Services::Erase_Flash(void)
     unsigned int Start_Page{};
     unsigned int Pages_Count{};
     /* Prompt user to enter start page */
-    std::cout<<"- Please Enter Start Page : ";
+    std::cout<<Yellow<<" -> "<<Default<<"Please Enter Start Page : ";
     std::cin>>Start_Page;
     /* Prompt user to enter total number of pages to erase */
-    std::cout<<"- Please Enter Total Number Of Pages To Erase : ";
+    std::cout<<Yellow<<" -> "<<Default<<"Please Enter Total Number Of Pages To Erase : ";
     std::cin>>Pages_Count;
     /* Erase flash */
-    Erase_Flash(Start_Page, Pages_Count);
+    if(Erase_Flash(Start_Page, Pages_Count))
+    {
+        /* Print message if erasing is done successfully */
+        std::cout<<Green<<"======================= "<<Default<<"Erasing Done Successfully"<<Green<<" ======================="<<std::endl;
+    }
+    else
+    {
+        /* Print error message if no acknowledgment received after sending erase pages */
+        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"There Is No ACK After Sending Eraseing Pages"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;
+    }
 }
 
 /****************************************************************************************************
@@ -808,22 +835,15 @@ void Services::Erase_Flash(void)
 *                   - It prints a message if jumping is done successfully, otherwise, it prints an error message
 *                     if no acknowledgment is received after sending the jump address.
 *****************************************************************************************************/
-void Services::Jump_Address(unsigned int &Address)
+bool Services::Jump_Address(unsigned int &Address)
 {
+    bool Status{};
     /* Prepare address bytes */
     std::vector<unsigned char> Address_Bytes(sizeof(Address));
     std::memcpy(Address_Bytes.data(), &Address, sizeof(Address));
     /* Send jump address command */
-    if(Send_Frame(Bootloader_Command_Address_Jump, Address_Bytes))
-    {
-        /* Print message if jumping is done successfully */
-        std::cout<<"Jumbing Done Successfully"<<std::endl;
-    }
-    else
-    {
-        /* Print error message if no acknowledgment received after sending jump address */
-        std::cout<<"There Is No ACK After Sending Jump Address"<<std::endl;
-    }
+    if(Send_Frame(Bootloader_Command_Address_Jump, Address_Bytes)){Status=true;}
+    return Status;
 }
 
 /****************************************************************************************************
@@ -841,10 +861,19 @@ void Services::Jump_Address(void)
 {
     unsigned int Address{};
     /* Prompt user to enter address in hexadecimal */
-    std::cout<<"Please Enter Address In HEX : 0x";
+    std::cout<<Yellow<<" -> "<<Default<<"Please Enter Address In HEX : 0x";
     std::cin>>std::hex>>Address>>std::dec;
     /* Jump to address */
-    Jump_Address(Address);
+    if(Jump_Address(Address))
+    {
+        /* Print message if jumping is done successfully */
+        std::cout<<Green<<"======================= "<<Default<<"Jumbing Done Successfully"<<Green<<" ======================="<<std::endl;
+    }
+    else
+    {
+        /* Print error message if no acknowledgment received after sending jump address */
+        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"There Is No ACK After Sending Jump Address"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;
+    }
 }
 
 /****************************************************************************************************
@@ -859,16 +888,27 @@ void Services::Jump_Address(void)
 *                   - It then retrieves the built-in ID from the received data buffer and prints it.
 *                   - If no acknowledgment is received, it prints an error message.
 *****************************************************************************************************/
-void Services::Get_ID(void)
+bool Services::Get_ID(std::vector<unsigned int> &Built_ID)
 {
-    /* Check if Get_ID frame is sent successfully */
+    bool Status{};
     if(Send_Frame(Bootloader_Command_Get_ID))
     {
+        /* Store built-in ID */
+        Built_ID.push_back((reinterpret_cast<unsigned int*>(Data_Buffer.data()))[0]);
+        Built_ID.push_back((reinterpret_cast<unsigned int*>(Data_Buffer.data()))[1]);
+        Built_ID.push_back((reinterpret_cast<unsigned int*>(Data_Buffer.data()))[2]);
+        Status=true;
+    }
+    return Status;
+}
+void Services::Get_ID(void)
+{
+    std::vector<unsigned int> ID{};
+    /* Check if Get_ID frame is sent successfully */
+    if(Get_ID(ID))
+    {
         /* Print built-in ID */
-        std::cout<<"Built In ID : 0x"<<std::hex<<(reinterpret_cast<unsigned int*>(Data_Buffer.data()))[0]<<" 0x";
-        std::cout<<std::hex<<(reinterpret_cast<unsigned int*>(Data_Buffer.data()))[1]<<" 0x";
-        std::cout<<std::hex<<(reinterpret_cast<unsigned int*>(Data_Buffer.data()))[2]<<std::endl;
-        std::cout<<std::dec;
+        std::cout<<Yellow<<" -> Built In ID :"<<Default<<" 0x"<<std::hex<<ID[0]<<" 0x"<<ID[1]<<" 0x"<<ID[2]<<std::endl<<std::dec;
     }
     else
     {
@@ -905,8 +945,10 @@ Services::Services(const std::string &Device_Location,const std::string &GPIO_Ma
 *****************************************************************************************************/
 bool Services::Get_Acknowledge(void)
 {
+    unsigned char Return{};
+    Receive_Data(Return);
     /* Check if received data is ACK */
-    return Receive_Data() == Bootloader_State_ACK ? true : false;
+    return  Return == Bootloader_State_ACK ? true : false;
 }
 
 /****************************************************************************************************
@@ -924,9 +966,11 @@ void Services::Update_Buffer(void)
 {
     unsigned char Data_Size{};
     /* Read data size */
-    Data_Size = Receive_Data();
-    /* Read data based on size */
-    Receive_Data(Data_Size);
+    if(Receive_Data(Data_Size))
+    {
+        /* Read data based on size */
+        Receive_Data(static_cast<size_t>(Data_Size));
+    }
 }
 
 
@@ -942,35 +986,149 @@ void Services::Write_Data(void)
     unsigned int Address{};
     unsigned int Data{};
     /* Prompt user to enter start page */
-    std::cout<<"- Please Enter Desired Address In HEX : 0x";
+    std::cout<<Yellow<<" -> "<<Default<<"Please Enter Desired Address In HEX : 0x";
     std::cin>>std::hex>>Address>>std::dec;
     /* Prompt user to enter total number of pages to erase */
-    std::cout<<"- Please Enter Data To Write In HEX : 0x";
+    std::cout<<Yellow<<" -> "<<Default<<"Please Enter Data To Write In HEX : 0x";
     std::cin>>std::hex>>Data>>std::dec;
     /* Erase flash */
-    Write_Data(Address, Data);
-}
-void Services::Write_Data(unsigned int &Address,unsigned int &Data)
-{
-    std::vector<unsigned char> Sending_Bytes(sizeof(Address) + sizeof(Data));
-    std::memcpy(Sending_Bytes.data(), &Address, sizeof(Address));
-    std::memcpy(Sending_Bytes.data() + sizeof(Address), &Data, sizeof(Data));
-
-    /* Send erase flash command */
-    if(Send_Frame(Bootloader_Command_Send_Data, Sending_Bytes))
+    if(Write_Data(Address, Data))
     {
         /* Print message if erasing is done successfully */
-        std::cout<<"Writing Done Successfully"<<std::endl;
+        std::cout<<Green<<"======================= "<<Default<<"Writing Done Successfully"<<Green<<" ======================="<<std::endl;
     }
     else
     {
         /* Print error message if no acknowledgment received after sending erase pages */
-        std::cout<<"There Is No ACK After Sending Writing Data"<<std::endl;
+        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"There Is No ACK After Sending Writing Data"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;
     }
+}
+bool Services::Write_Data(unsigned int &Address,unsigned int &Data)
+{
+    bool Status{};
+    std::vector<unsigned char> Sending_Bytes(sizeof(Address) + sizeof(Data));
+    std::memcpy(Sending_Bytes.data(), &Address, sizeof(Address));
+    std::memcpy(Sending_Bytes.data() + sizeof(Address), &Data, sizeof(Data));
+    /* Send erase flash command */
+    if(Send_Frame(Bootloader_Command_Send_Data, Sending_Bytes)){Status=true;}
+    return Status;
 }
 bool Services::Say_Hi(void)
 {
     return Send_Frame(Bootloader_Command_Say_Hi);
+}
+/*****************************************
+-------------    Monitor     -------------
+*****************************************/
+/****************************************************************************************************
+* Function Name   : Monitor
+* Class           : Monitor
+* Description     : Constructor for the Monitor class.
+* Parameters (in) : Repository_Path - The path to the Git repository.
+*                   Arguments       - Vector of command-line arguments.
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This constructor initializes the Monitor class with the provided Git repository path
+*                     and command-line arguments.
+*****************************************************************************************************/
+Monitor::Monitor(const std::string &Repository_Path,std::vector<std::string> &Arguments)
+:Binary_Repository{Repository_Path},Commands{Arguments}{}
+/****************************************************************************************************
+* Function Name   : Check_For_Update
+* Class           : Monitor
+* Description     : Checks for updates in the Git repository.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if an update is available, false otherwise.
+* Notes           : - This function changes the directory to the Git repository path and runs
+*                     the "git fetch origin" command to check for updates from the remote repository.
+*                   - It reads the output of the command and searches for the presence of "origin/master"
+*                     in the output to determine if an update is available.
+*****************************************************************************************************/
+bool Monitor::Check_For_Update(void)
+{
+    /* Flag to indicate if an update is available */
+    bool Update{false};
+    /* String to store the output of the command */
+    std::string Output{};
+    /* Change directory to the Git repository path */
+    if (chdir(Binary_Repository.c_str())==0)
+    {
+        /* Run Fetch Command To Check For Updates */
+        FILE* pipe = popen("git fetch origin 2>&1", "r");
+        if (pipe)
+        {
+            /* Temporary buffer to read command output */
+            char Temporary_Buffer[128];
+            /* Read command output line by line until the end of the pipe */
+            while (!feof(pipe))
+            {
+                if (fgets(Temporary_Buffer, 128, pipe) != nullptr)
+                {
+                    /* Append output to the string */
+                    Output += Temporary_Buffer;
+                }
+            }
+            /* Check if "origin/master" is present in the output */
+            Update=(Output.find("origin/master")!=std::string::npos);
+            /* Close the pipe */
+            pclose(pipe);
+        }
+        else
+        {
+            /* Error handling if the git fetch command fails */
+            std::cerr << "Error executing git fetch command!" << std::endl;
+        }
+    }
+    else
+    {
+        /* Error handling if changing directory to the Git repository path fails */
+        std::cerr << "Error: Cannot change directory to the Git repository path." << std::endl;
+    }
+    return Update;
+}
+/****************************************************************************************************
+* Function Name   : Start_Monitoring
+* Class           : Monitor
+* Description     : Starts monitoring for updates in the Git repository.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function continuously checks for updates in the Git repository by calling
+*                     the Check_For_Update function.
+*                   - If an update is detected, it prints a message indicating changes.
+*                   - It sleeps for a specified duration before checking for updates again.
+*****************************************************************************************************/
+void Monitor::Get_Update(void)
+{
+    while(true)
+    {
+        /* Check If There Is Update */
+        if (Check_For_Update())
+        {
+            std::cout << "Changes detected:" << std::endl;
+            break;
+        }
+        /* Sleep for some time before checking again */
+        std::this_thread::sleep_for(std::chrono::seconds(Get_Update_Time_Seconds));
+    }
+}
+void Monitor::Start_Monitoring(void)
+{
+    for (const auto& Option : Commands)
+    {
+        /* Check for specific arguments */
+        if (Option == "-r")
+        {
+            std::cout << "Start Monitoring For Any Updates\n";
+            Get_Update();
+        }
+        else
+        {
+            std::cout << "Unknown option or parameter: " << Option << std::endl;
+        }
+    }
+
 }
 /*****************************************
 ---------    User Interface     ----------
@@ -989,8 +1147,9 @@ bool Services::Say_Hi(void)
 *                   - It initializes the User_Interface class by inheriting from the Services class,
 *                     which handles communication with the controller.
 *****************************************************************************************************/
-User_Interface::User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin)
-    :Services{User_Interface_File,GPIO_Manage_Pin}{}
+User_Interface::User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,std::vector<std::string> &Arguments)
+:Services{User_Interface_File,GPIO_Manage_Pin},
+Monitor{Repository_Path,Arguments}{}
 
 /****************************************************************************************************
 * Function Name   : Start_Application
@@ -1008,23 +1167,30 @@ User_Interface::User_Interface(const std::string &User_Interface_File,const std:
 *****************************************************************************************************/
 void User_Interface::Print_Target_Info(bool State)
 {
+    unsigned int ID{},Major{},Minor{};
+    std::vector<unsigned int> Built_ID{};
     if(State)
     {
-        std::cout << "\033[1;32m";
-        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
-        std::cout << "++++++++++++ Target Detected +++++++++++\n";
-        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
-        Get_Version();
-        Get_ID();
-        std::cout << "\033[0m";
+        Get_Version(ID,Major,Minor);
+        Get_ID(Built_ID);
+        std::cout<<Green;
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<"+++++++++++++++++++++++++++++++++++++ Target Detected ++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<Yellow<<" -> Built In ID : "<<Default<<"0x"<<std::hex<<Built_ID[0]<<" 0x"<<Built_ID[1]<<" 0x"<<Built_ID[2]<<std::endl<<std::dec;
+        std::cout<<Yellow<<" -> Chip Number : "<<Default<<ID<<std::endl;
+        std::cout<<Yellow<<" -> Application Version : "<<Default<<Major<<"."<<Minor<<std::endl;
+        std::cout<<Green;
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
     }
     else
     {
-        std::cout << "\033[1;31m";
-        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
-        std::cout << "+++++++++ Failed To Find Target ++++++++\n";
-        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
-        std::cout << "\033[0m";
+        std::cout<<Red;
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<"++++++++++++++++++++++++++++++++++ Failed To Find Target +++++++++++++++++++++++++++++++++\n";
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<Default;
     }
 }
 User_Interface::~User_Interface()
@@ -1033,6 +1199,7 @@ User_Interface::~User_Interface()
     {
         Exit_Bootloader();
     }
+    std::cout<<Default;
 }
 void User_Interface::Start_Application(void)
 {
@@ -1041,23 +1208,38 @@ void User_Interface::Start_Application(void)
     /* Initialize Default Location For Serial And GPIO */
     Halt_MCU();
     std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
-    Print_Target_Info(Say_Hi());
     while(Flag)
-    {        
-        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
-        std::cout << "Options:" << std::endl;
-        std::cout << "1. Get ID." << std::endl;
-        std::cout << "2. Get Help." << std::endl;
-        std::cout << "3. Write Data." << std::endl;
-        std::cout << "4. Get Version." << std::endl;
-        std::cout << "5. Erase Flash." << std::endl;
-        std::cout << "6. Jump Address." << std::endl;
-        std::cout << "7. Flash Application." << std::endl;
-        std::cout << "9. Exit." << std::endl;
-        std::cout << "Enter Option : ";
+    {
+        {
+            std::cout<<Green;
+            std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n+";
+            std::cout<<"                                                                                        +""\n+"<<Default;
+            std::cout<<"    ██████╗░░█████╗░░█████╗░████████╗██╗░░░░░░█████╗░░█████╗░██████╗░███████╗██████╗░   "<<Green<<"+\n+"<<Default;
+            std::cout<<"    ██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝██║░░░░░██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔══██╗   "<<Green<<"+\n+"<<Default;
+            std::cout<<"    ██████╦╝██║░░██║██║░░██║░░░██║░░░██║░░░░░██║░░██║███████║██║░░██║█████╗░░██████╔╝   "<<Green<<"+\n+"<<Default;
+            std::cout<<"    ██╔══██╗██║░░██║██║░░██║░░░██║░░░██║░░░░░██║░░██║██╔══██║██║░░██║██╔══╝░░██╔══██╗   "<<Green<<"+\n+"<<Default;
+            std::cout<<"    ██████╦╝╚█████╔╝╚█████╔╝░░░██║░░░███████╗╚█████╔╝██║░░██║██████╔╝███████╗██║░░██║   "<<Green<<"+\n+"<<Default;
+            std::cout<<"    ╚═════╝░░╚════╝░░╚════╝░░░░╚═╝░░░╚══════╝░╚════╝░╚═╝░░╚═╝╚═════╝░╚══════╝╚═╝░░╚═╝   "<<Green<<"+\n+"<<Default;
+            std::cout<<"                            🅚 🅗 🅐 🅛 🅔 🅓  _  🅔 🅛 - 🅢 🅐 🅨 🅔 🅓                             "<<Green<<"+\n+";
+            std::cout<<"                                                                                        +""\n"<<Default;
+        }
+        Print_Target_Info(Say_Hi());
+        std::cout<<Blue;
+        std::cout<<"Options:"<<std::endl;
+        std::cout<<Yellow<<"  1. "<<Default<<"Get ID."<<std::endl;
+        std::cout<<Yellow<<"  2. "<<Default<<"Get Help."<<std::endl;
+        std::cout<<Yellow<<"  3. "<<Default<<"Write Data." <<std::endl;
+        std::cout<<Yellow<<"  4. "<<Default<<"Get Version."<<std::endl;
+        std::cout<<Yellow<<"  5. "<<Default<<"Erase Flash."<<std::endl;
+        std::cout<<Yellow<<"  6. "<<Default<<"Jump Address."<<std::endl;
+        std::cout<<Yellow<<"  7. "<<Default<<"Flash Application."<<std::endl;
+        std::cout<<Yellow<<"  9. "<<Default<<"Exit."<<std::endl;
+        std::cout<<Blue<<"Enter Option : "<<Yellow;
         /* Scan The Input By User */
-        std::cin >> Chosen_Option;
-        std::cout << "++++++++++++++++++++++++++++++++++++++++\n";
+        std::cin>>Chosen_Option;
+        std::cout<<Green;
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
         /* Jump For The Option */
         switch (Chosen_Option)
         {
@@ -1070,9 +1252,15 @@ void User_Interface::Start_Application(void)
             case '7':Flash_Application();break;
             case '9':Flag=false;break;
         }
+        if(!Flag){if(system("clear")){};break;}
+        std::cout<<Green;
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::this_thread::sleep_for(std::chrono::seconds(4)); 
+        if(system("clear")){};
     }
 }
 }
 /********************************************************************
- *  END OF FILE:  Driver.cpp 
+ *  END OF FILE:  Bootloader_Interface.cpp 
 ********************************************************************/

@@ -2,27 +2,41 @@
  *  FILE DESCRIPTION
 -----------------------
  *  Author: Khaled El-Sayed @t0ti20
- *  File: Application.cpp
+ *  File: Bootloader.cpp
  *  Date: March 28, 2024
- *  Description: Testing Application For Device Driver
+ *  Description: Application For Bootloader
  *  (C) 2023 "@t0ti20". All rights reserved.
 *******************************************************************/
 /*****************************************
 -----------     INCLUDES     -------------
 *****************************************/
-#include "Bootloader_Host.hpp"
+#include "Bootloader_Interface.hpp"
+/*****************************************
+---------    Configurations     ----------
+*****************************************/
 constexpr const char GPIO_Pin[]                 {"18"};
 constexpr const char Serial_Driver[]            {"/dev/ttyS0"};
+constexpr const char Binary_Repo[]              {"/home/root/FOTA"};
 /*****************************************
 ----------   Main Application   ----------
 *****************************************/
-int main() 
+int main(int argc, char* argv[]) 
 {
     using namespace Bootloader;
-    User_Interface Terminal{Serial_Driver,GPIO_Pin};
-    Terminal.Start_Application();
+    std::vector<std::string> Arguments;
+    User_Interface Application{Serial_Driver,GPIO_Pin,Binary_Repo,Arguments};
+    for (size_t Counter=1;Counter<argc;++Counter){Arguments.emplace_back(argv[Counter]);}
+    if(Arguments.size())
+    {
+        Application.Start_Monitoring();
+    }
+    else
+    {
+        if(system("clear")){};
+        Application.Start_Application();
+    }
     return 0;
 }
 /********************************************************************
- *  END OF FILE:  Application.cpp 
+ *  END OF FILE:  Bootloader.cpp 
 ********************************************************************/
