@@ -28,6 +28,7 @@ constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
 constexpr unsigned int Sending_Delay_MS         {100};
 constexpr unsigned int Get_Update_Time_Seconds  {5};
+constexpr unsigned int Application_Location     {32};
 constexpr unsigned int Booting_Flag             {0x8007FFC};
 /*****************************************
 -----------    Bootloader     ------------
@@ -384,7 +385,7 @@ bool Erase_Flash(unsigned int &Start_Page, unsigned int &Pages_Count);
 *                     otherwise, it prints an error message if an error occurs while sending frames
 *                     or if no acknowledgment is received after sending the payload.
 *****************************************************************************************************/
-bool Flash_Application(unsigned int &Start_Page,std::vector<unsigned char> &Payload);
+bool Flash_Application(unsigned int &Start_Page,std::string &File_Location);
 
 void Write_Data(void);
 bool Write_Data(unsigned int &Address,unsigned int &Data);
@@ -494,7 +495,7 @@ class Monitor
 {
 /*************** Methods ****************/
 public:
-Monitor(Services &User_Interface,const std::string &Repository_Path,std::vector<std::string> &Arguments);
+Monitor(Services &User_Interface,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments);
 void Start_Monitoring();
 private:
 bool Check_For_Update(void);
@@ -502,6 +503,7 @@ void Get_Update(void);
 /************** Variables ***************/
 private:
 std::string Binary_Repository{};
+std::string File_Location{};
 std::vector<std::string> &Commands;
 Services &Interface;
 };
@@ -535,7 +537,7 @@ public:
 *                   - It initializes the User_Interface class by inheriting from the Services class,
 *                     which handles communication with the controller.
 *****************************************************************************************************/
-User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,std::vector<std::string> &Arguments);
+User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments);
 ~User_Interface();
 /****************************************************************************************************
 * Function Name   : Start_Application

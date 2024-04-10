@@ -680,13 +680,14 @@ bool Services::Send_Frame(std::vector<unsigned char> &Data)
 *                     otherwise, it prints an error message if an error occurs while sending frames
 *                     or if no acknowledgment is received after sending the payload.
 *****************************************************************************************************/
-bool Services::Flash_Application(unsigned int &Start_Page, std::vector<unsigned char> &Payload)
+bool Services::Flash_Application(unsigned int &Start_Page, std::string &File_Location)
 {
-    bool Status{};
+    std::vector<unsigned char> Payload{};
+    bool Status{Read_File(Payload,File_Location)};
     /* Prepare data bytes */
     std::vector<unsigned char> Data_Bytes{static_cast<unsigned char>(Start_Page), static_cast<unsigned char>((Payload.size() / 250) + 1)};
     /* Send flash application command */
-    if(Send_Frame(Bootloader_Command_Flash_Application, Data_Bytes))
+    if(Status==Send_Frame(Bootloader_Command_Flash_Application,Data_Bytes))
     {
         /* Send payload */
         if(Send_Frame(Payload)){Status=true;}
@@ -709,9 +710,8 @@ bool Services::Flash_Application(unsigned int &Start_Page, std::vector<unsigned 
 *****************************************************************************************************/
 void Services::Flash_Application(void)
 {
-    std::string File_Location{"./Binary.bin"};
+    std::string File_Location{"./Blink.bin"};
     bool Animation_Running{true};
-    std::vector<unsigned char> Payload{};
     auto Loading = [&Animation_Running]() 
     {
         const char Animation[] = {'|', '/', '-', '\\'};
@@ -739,27 +739,23 @@ void Services::Flash_Application(void)
         std::cout<<Yellow<<" -> "<<Default<<"Please Enter File Location : ";
         std::cin>>File_Location;
     }
+    std::cout<<Yellow<<" -> "<<Default<<"Flashing Application ["<<File_Location<<"]\n";
     std::thread Animation_Thread(Loading);
-    /* Read binary file */
-    if (Read_File(Payload,File_Location))
+    if(Flash_Application(Start_Page, File_Location))
     {
-        /* Flash application */
-        if(Flash_Application(Start_Page, Payload))
-        {
-            Animation_Running=false;
-            Animation_Thread.join();                                       
-            std::cout<<Green<<"================================ "<<Default<<"Done Flashing Application"<<Green<<" ===============================\n";
-            Halt_MCU();
-        }
-        else{std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";}
+        Animation_Running=false;
+        Animation_Thread.join();                                       
+        std::cout<<Green<<"================================ "<<Default<<"Done Flashing Application"<<Green<<" ===============================\n";
+        Halt_MCU();
     }
     else
     {
         Animation_Running=false;
         Animation_Thread.join();
-        /* Print error message if unable to read the binary file */
-        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error: Unable to read the binary file"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;
+        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
     }
+
+
 }
 
 /****************************************************************************************************
@@ -814,7 +810,7 @@ void Services::Erase_Flash(void)
     if(Erase_Flash(Start_Page, Pages_Count))
     {
         /* Print message if erasing is done successfully */
-        std::cout<<Green<<"================================ "<<Default<<"Erasing Done Successfully"<<Green<<" ================================="<<std::endl;
+        std::cout<<Green<<"=============================== "<<Default<<"Erasing Done Successfully"<<Green<<" ================================"<<std::endl;
     }
     else
     {
@@ -868,7 +864,7 @@ void Services::Jump_Address(void)
     if(Jump_Address(Address))
     {
         /* Print message if jumping is done successfully */
-        std::cout<<Green<<"================================ "<<Default<<"Jumbing Done Successfully"<<Green<<" ================================"<<std::endl;
+        std::cout<<Green<<"================================ "<<Default<<"Jumbing Done Successfully"<<Green<<" ==============================="<<std::endl;
     }
     else
     {
@@ -996,7 +992,7 @@ void Services::Write_Data(void)
     if(Write_Data(Address, Data))
     {
         /* Print message if erasing is done successfully */                        
-        std::cout<<Green<<"================================= "<<Default<<"Writing Done Successfully"<<Green<<" ================================"<<std::endl;
+        std::cout<<Green<<"================================ "<<Default<<"Writing Done Successfully"<<Green<<" ==============================="<<std::endl;
     }
     else
     {
@@ -1036,8 +1032,8 @@ void Services::Start_Target_Bootloader(void)
 * Notes           : - This constructor initializes the Monitor class with the provided Git repository path
 *                     and command-line arguments.
 *****************************************************************************************************/
-Monitor::Monitor(Services &User_Interface,const std::string &Repository_Path,std::vector<std::string> &Arguments)
-:Interface{User_Interface},Binary_Repository{Repository_Path},Commands{Arguments}{}
+Monitor::Monitor(Services &User_Interface,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments)
+:Interface{User_Interface},Binary_Repository{Repository_Path},File_Location{Binary_Location},Commands{Arguments}{}
 /****************************************************************************************************
 * Function Name   : Check_For_Update
 * Class           : Monitor
@@ -1056,28 +1052,41 @@ bool Monitor::Check_For_Update(void)
     bool Update{false};
     /* String to store the output of the command */
     std::string Output{};
+    /* Temporary buffer to read command output */
+    char Temporary_Buffer[128];
     /* Change directory to the Git repository path */
     if (chdir(Binary_Repository.c_str())==0)
     {
         /* Run Fetch Command To Check For Updates */
-        FILE* pipe = popen("git fetch origin 2>&1", "r");
-        if (pipe)
+        FILE* Fetch_Pipe = popen("git fetch origin 2>&1", "r");
+        if (Fetch_Pipe)
         {
-            /* Temporary buffer to read command output */
-            char Temporary_Buffer[128];
             /* Read command output line by line until the end of the pipe */
-            while (!feof(pipe))
+            while (!feof(Fetch_Pipe))
             {
-                if (fgets(Temporary_Buffer, 128, pipe) != nullptr)
+                if (fgets(Temporary_Buffer, 128, Fetch_Pipe) != nullptr)
                 {
                     /* Append output to the string */
                     Output += Temporary_Buffer;
                 }
             }
-            /* Check if "origin/master" is present in the output */
-            Update=(Output.find("origin/master")!=std::string::npos);
             /* Close the pipe */
-            pclose(pipe);
+            pclose(Fetch_Pipe);
+            if ((Output.find("origin/master")!=std::string::npos))
+            {
+                Output.clear();
+                FILE* Checkout_Pipe = popen("git pull origin master 2>&1", "r");
+                if (Checkout_Pipe) 
+                {
+                    pclose(Checkout_Pipe);
+                    Update=true;
+                }
+                else
+                {
+                    /* Error handling if the git checkout command fails */
+                    std::cerr << "Error executing git pull command!" << std::endl;
+                }
+            }
         }
         else
         {
@@ -1111,7 +1120,7 @@ void Monitor::Get_Update(void)
         /* Check If There Is Update */
         if (Check_For_Update())
         {
-            std::cout << "Changes detected:" << std::endl;
+            std::cout << "There Is An Update" << std::endl;
             break;
         }
         /* Sleep for some time before checking again */
@@ -1120,6 +1129,7 @@ void Monitor::Get_Update(void)
 }
 void Monitor::Start_Monitoring(void)
 {
+    unsigned int Location{Application_Location};
     for (const auto& Option : Commands)
     {
         /* Check for specific arguments */
@@ -1131,7 +1141,12 @@ void Monitor::Start_Monitoring(void)
             std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
             if(Interface.Say_Hi())
             {
-                std::cout << "Flashing !!!\n";
+                std::cout<<"Start Flashing Application : "<<File_Location<<std::endl;
+                if(Interface.Flash_Application(Location,File_Location))
+                {
+                    Interface.Exit_Bootloader();
+                    std::cout << "Application Flashed Successfully\n";
+                }
             }
             else
             {
@@ -1162,9 +1177,9 @@ void Monitor::Start_Monitoring(void)
 *                   - It initializes the User_Interface class by inheriting from the Services class,
 *                     which handles communication with the controller.
 *****************************************************************************************************/
-User_Interface::User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,std::vector<std::string> &Arguments)
+User_Interface::User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments)
 :Services{User_Interface_File,GPIO_Manage_Pin},
-Monitor{(*this),Repository_Path,Arguments}{}
+Monitor{(*this),Repository_Path,Binary_Location,Arguments}{}
 
 /****************************************************************************************************
 * Function Name   : Start_Application

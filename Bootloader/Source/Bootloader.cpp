@@ -17,6 +17,7 @@
 constexpr const char GPIO_Pin[]                 {"18"};
 constexpr const char Serial_Driver[]            {"/dev/ttyS0"};
 constexpr const char Binary_Repo[]              {"/home/root/FOTA"};
+constexpr const char Binary_File[]              {"/Application/Build/Blink.bin"};
 /*****************************************
 ----------   Main Application   ----------
 *****************************************/
@@ -24,7 +25,14 @@ int main(int argc, char* argv[])
 {
     using namespace Bootloader;
     std::vector<std::string> Arguments;
-    User_Interface Application{Serial_Driver,GPIO_Pin,Binary_Repo,Arguments};
+    User_Interface Application
+    {
+        Serial_Driver,
+        GPIO_Pin,
+        Binary_Repo,
+        std::string(Binary_Repo)+std::string(Binary_File),
+        Arguments
+    };
     for (size_t Counter=1;Counter<argc;++Counter){Arguments.emplace_back(argv[Counter]);}
     if(Arguments.size())
     {
