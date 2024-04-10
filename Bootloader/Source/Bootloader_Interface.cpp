@@ -1017,6 +1017,10 @@ bool Services::Say_Hi(void)
 {
     return Send_Frame(Bootloader_Command_Say_Hi);
 }
+void Services::Start_Target_Bootloader(void)
+{
+    Halt_MCU();
+}
 /*****************************************
 -------------    Monitor     -------------
 *****************************************/
@@ -1031,8 +1035,8 @@ bool Services::Say_Hi(void)
 * Notes           : - This constructor initializes the Monitor class with the provided Git repository path
 *                     and command-line arguments.
 *****************************************************************************************************/
-Monitor::Monitor(const std::string &Repository_Path,std::vector<std::string> &Arguments)
-:Binary_Repository{Repository_Path},Commands{Arguments}{}
+Monitor::Monitor(Services &User_Interface,const std::string &Repository_Path,std::vector<std::string> &Arguments)
+:Interface{User_Interface},Binary_Repository{Repository_Path},Commands{Arguments}{}
 /****************************************************************************************************
 * Function Name   : Check_For_Update
 * Class           : Monitor
@@ -1122,6 +1126,14 @@ void Monitor::Start_Monitoring(void)
         {
             std::cout << "Start Monitoring For Any Updates\n";
             Get_Update();
+            if(Interface.Say_Hi())
+            {
+                std::cout << "Flashing !!!\n";
+            }
+            else
+            {
+                std::cout << "Application Downloadded But MCU Not Connected\n";
+            }
         }
         else
         {
@@ -1149,7 +1161,7 @@ void Monitor::Start_Monitoring(void)
 *****************************************************************************************************/
 User_Interface::User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,std::vector<std::string> &Arguments)
 :Services{User_Interface_File,GPIO_Manage_Pin},
-Monitor{Repository_Path,Arguments}{}
+Monitor{(*this),Repository_Path,Arguments}{}
 
 /****************************************************************************************************
 * Function Name   : Start_Application
@@ -1206,7 +1218,7 @@ void User_Interface::Start_Application(void)
     bool Flag{true};
     char Chosen_Option{};
     /* Initialize Default Location For Serial And GPIO */
-    Halt_MCU();
+    Start_Target_Bootloader();
     std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
     while(Flag)
     {

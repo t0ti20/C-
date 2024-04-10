@@ -227,7 +227,7 @@ boost::asio::serial_port Port;
 /*****************************************
 ------------    Services     -------------
 *****************************************/
-class Services : protected Serial_Port
+class Services : private Serial_Port
 {
 private:
 enum Bootloader_Command_t 
@@ -242,7 +242,7 @@ enum Bootloader_Command_t
     Bootloader_Command_Send_Data           =(8)
 };
 /*************** Methods ****************/
-protected:
+public:
 /****************************************************************************************************
 * Constructor Name: Services
 * Class           : Services
@@ -389,7 +389,7 @@ bool Flash_Application(unsigned int &Start_Page,std::vector<unsigned char> &Payl
 void Write_Data(void);
 bool Write_Data(unsigned int &Address,unsigned int &Data);
 void Exit_Bootloader(void);
-
+void Start_Target_Bootloader(void);
 bool Say_Hi(void);
 private:
 /****************************************************************************************************
@@ -497,7 +497,7 @@ class Monitor
 {
 /*************** Methods ****************/
 public:
-Monitor(const std::string &Repository_Path,std::vector<std::string> &Arguments);
+Monitor(Services &User_Interface,const std::string &Repository_Path,std::vector<std::string> &Arguments);
 void Start_Monitoring();
 private:
 bool Check_For_Update(void);
@@ -506,6 +506,7 @@ void Get_Update(void);
 private:
 std::string Binary_Repository{};
 std::vector<std::string> &Commands;
+Services &Interface;
 };
 
 
