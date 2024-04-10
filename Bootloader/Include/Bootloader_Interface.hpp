@@ -23,7 +23,7 @@
 /*****************************************
 ---------    Configurations     ----------
 *****************************************/
-#define ENABLE_DEBUG                            (4)
+//#define ENABLE_DEBUG                            (4)
 constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
 constexpr unsigned int Sending_Delay_MS         {100};
@@ -476,10 +476,7 @@ bool Send_Frame(Bootloader_Command_t Service,std::vector<unsigned char> &Data);
 *                   - If unsuccessful (e.g., file not found or unable to read), it returns false
 *                     and Binary_File is cleared.
 *****************************************************************************************************/
-bool Read_File(std::vector<unsigned char> &Binary_File);
-/*************** Variables **************/
-private:
-std::string File_Location{"./Binary.bin"};
+bool Read_File(std::vector<unsigned char> &Binary_File,std::string &File_Location);
 };
 
 

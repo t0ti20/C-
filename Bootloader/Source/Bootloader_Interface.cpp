@@ -452,7 +452,7 @@ bool Services::Send_Frame(Bootloader_Command_t Service, std::vector<unsigned cha
 *                   - If unsuccessful (e.g., file not found or unable to read), it returns false
 *                     and Binary_File is cleared.
 *****************************************************************************************************/
-bool Services::Read_File(std::vector<unsigned char> &Binary_File)
+bool Services::Read_File(std::vector<unsigned char> &Binary_File,std::string &File_Location)
 {
     /* Initialize Status as true */
     bool Status{true};
@@ -709,6 +709,7 @@ bool Services::Flash_Application(unsigned int &Start_Page, std::vector<unsigned 
 *****************************************************************************************************/
 void Services::Flash_Application(void)
 {
+    std::string File_Location{"./Binary.bin"};
     bool Animation_Running{true};
     std::vector<unsigned char> Payload{};
     auto Loading = [&Animation_Running]() 
@@ -729,25 +730,25 @@ void Services::Flash_Application(void)
     std::cout<<Yellow<<" -> "<<Default<<"Please Enter Start Page : ";
     std::cin>>Start_Page;
     /* Prompt user to edit file location */
-    std::cout<<Yellow<<" -> "<<Default<<"Binary File Location ["<<this->File_Location<<"] Want To Edit [N/y] : ";
+    std::cout<<Yellow<<" -> "<<Default<<"Binary File Location ["<<File_Location<<"] Want To Edit [N/y] : ";
     std::cin.ignore();
     std::getline(std::cin, Input);
     /* If user wants to edit file location */
     if (!Input.empty() && (Input == "y" || Input == "Y"))
     {
         std::cout<<Yellow<<" -> "<<Default<<"Please Enter File Location : ";
-        std::cin>>this->File_Location;
+        std::cin>>File_Location;
     }
     std::thread Animation_Thread(Loading);
     /* Read binary file */
-    if (Read_File(Payload))
+    if (Read_File(Payload,File_Location))
     {
         /* Flash application */
         if(Flash_Application(Start_Page, Payload))
         {
             Animation_Running=false;
-            Animation_Thread.join();
-            std::cout<<Green<<"=============================== "<<Default<<"Done Sending Payload Frame"<<Green<<" ===============================\n";
+            Animation_Thread.join();                                       
+            std::cout<<Green<<"================================ "<<Default<<"Done Flashing Application"<<Green<<" ===============================\n";
             Halt_MCU();
         }
         else{std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";}
@@ -813,7 +814,7 @@ void Services::Erase_Flash(void)
     if(Erase_Flash(Start_Page, Pages_Count))
     {
         /* Print message if erasing is done successfully */
-        std::cout<<Green<<"======================= "<<Default<<"Erasing Done Successfully"<<Green<<" ======================="<<std::endl;
+        std::cout<<Green<<"================================ "<<Default<<"Erasing Done Successfully"<<Green<<" ================================="<<std::endl;
     }
     else
     {
@@ -867,7 +868,7 @@ void Services::Jump_Address(void)
     if(Jump_Address(Address))
     {
         /* Print message if jumping is done successfully */
-        std::cout<<Green<<"======================= "<<Default<<"Jumbing Done Successfully"<<Green<<" ======================="<<std::endl;
+        std::cout<<Green<<"================================ "<<Default<<"Jumbing Done Successfully"<<Green<<" ================================"<<std::endl;
     }
     else
     {
@@ -994,8 +995,8 @@ void Services::Write_Data(void)
     /* Erase flash */
     if(Write_Data(Address, Data))
     {
-        /* Print message if erasing is done successfully */
-        std::cout<<Green<<"======================= "<<Default<<"Writing Done Successfully"<<Green<<" ======================="<<std::endl;
+        /* Print message if erasing is done successfully */                        
+        std::cout<<Green<<"================================= "<<Default<<"Writing Done Successfully"<<Green<<" ================================"<<std::endl;
     }
     else
     {
