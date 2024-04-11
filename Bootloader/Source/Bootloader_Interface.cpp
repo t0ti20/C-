@@ -710,7 +710,7 @@ bool Services::Flash_Application(unsigned int &Start_Page, std::string &File_Loc
 *****************************************************************************************************/
 void Services::Flash_Application(void)
 {
-    std::string File_Location{"./Blink.bin"};
+    std::string File_Location{"/home/root/FOTA/Application/Build/Blink.bin"};
     bool Animation_Running{true};
     auto Loading = [&Animation_Running]() 
     {
@@ -752,7 +752,7 @@ void Services::Flash_Application(void)
     {
         Animation_Running=false;
         Animation_Thread.join();
-        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
+        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
     }
 
 
@@ -1046,59 +1046,89 @@ Monitor::Monitor(Services &User_Interface,const std::string &Repository_Path,con
 *                   - It reads the output of the command and searches for the presence of "origin/master"
 *                     in the output to determine if an update is available.
 *****************************************************************************************************/
-bool Monitor::Check_For_Update(void)
+bool Monitor::Get_Update(void)
 {
-    /* Flag to indicate if an update is available */
-    bool Update{false};
+    std::string Output{};
+    bool Status{};
+    FILE* Checkout_Pipe = popen("git pull origin master 2>&1", "r");
+    if (Checkout_Pipe) 
+    {
+        pclose(Checkout_Pipe);
+        Status=true;
+    }
+    else
+    {
+        /* Error handling if the git checkout command fails */
+        std::cerr << "Error executing git pull command!" << std::endl;
+    }
+    return Status;
+}
+bool Monitor::Update_Available(void)
+{
+    bool Status{};
     /* String to store the output of the command */
     std::string Output{};
     /* Temporary buffer to read command output */
     char Temporary_Buffer[128];
-    /* Change directory to the Git repository path */
-    if (chdir(Binary_Repository.c_str())==0)
+    /* Run Fetch Command To Check For Updates */
+    FILE* Fetch_Pipe = popen("git fetch origin 2>&1", "r");
+    if (Fetch_Pipe)
     {
-        /* Run Fetch Command To Check For Updates */
-        FILE* Fetch_Pipe = popen("git fetch origin 2>&1", "r");
-        if (Fetch_Pipe)
+        /* Read command output line by line until the end of the pipe */
+        while (!feof(Fetch_Pipe))
         {
-            /* Read command output line by line until the end of the pipe */
-            while (!feof(Fetch_Pipe))
+            if (fgets(Temporary_Buffer, 128, Fetch_Pipe) != nullptr)
             {
-                if (fgets(Temporary_Buffer, 128, Fetch_Pipe) != nullptr)
-                {
-                    /* Append output to the string */
-                    Output += Temporary_Buffer;
-                }
-            }
-            /* Close the pipe */
-            pclose(Fetch_Pipe);
-            if ((Output.find("origin/master")!=std::string::npos))
-            {
-                Output.clear();
-                FILE* Checkout_Pipe = popen("git pull origin master 2>&1", "r");
-                if (Checkout_Pipe) 
-                {
-                    pclose(Checkout_Pipe);
-                    Update=true;
-                }
-                else
-                {
-                    /* Error handling if the git checkout command fails */
-                    std::cerr << "Error executing git pull command!" << std::endl;
-                }
+                /* Append output to the string */
+                Output += Temporary_Buffer;
             }
         }
-        else
-        {
-            /* Error handling if the git fetch command fails */
-            std::cerr << "Error executing git fetch command!" << std::endl;
-        }
+        /* Close the pipe */
+        pclose(Fetch_Pipe);
+        if ((Output.find("origin/master")!=std::string::npos)){Status=true;}
     }
     else
     {
-        /* Error handling if changing directory to the Git repository path fails */
-        std::cerr << "Error: Cannot change directory to the Git repository path." << std::endl;
+        /* Error handling if the git fetch command fails */
+        std::cerr << "Error executing git fetch command!" << std::endl;
     }
+    return Status;
+}
+bool Monitor::Build_Directory(void)
+{
+    bool Status{};
+    if (chdir(Binary_Repository.c_str())==0)
+    {
+        Status=true;
+    }
+    else
+    {
+        Status=Download_Binary();
+    }
+    return Status;
+}
+bool Monitor::Download_Binary(void)
+{
+    std::string Output{};
+    bool Status{};
+    FILE* Checkout_Pipe = popen(("git clone "+Remote_Repository).c_str(), "r");
+    if (Checkout_Pipe) 
+    {
+        pclose(Checkout_Pipe);
+        Status=true;
+    }
+    else
+    {
+        /* Error handling if the git checkout command fails */
+        std::cerr << "Error executing git clone command!" << std::endl;
+    }
+    return Status;
+}
+bool Monitor::Check_For_Update(void)
+{
+    /* Flag to indicate if an update is available */
+    bool Update{};
+    
     return Update;
 }
 /****************************************************************************************************
@@ -1113,30 +1143,44 @@ bool Monitor::Check_For_Update(void)
 *                   - If an update is detected, it prints a message indicating changes.
 *                   - It sleeps for a specified duration before checking for updates again.
 *****************************************************************************************************/
-void Monitor::Get_Update(void)
+void Monitor::Wait_For_Update(void)
 {
-    while(true)
+    if(Build_Directory())
     {
-        /* Check If There Is Update */
-        if (Check_For_Update())
+        while(true)
         {
-            std::cout << "There Is An Update" << std::endl;
-            break;
+            std::cout << "Waiting For Update" << std::endl;
+            /* Check If There Is Update */
+            if(Update_Available())
+            {
+                std::cout << "There Is An Update" << std::endl;
+                if(Get_Update()){std::cout << "Done Downloading Update" << std::endl;}
+                break;
+            }
+            else
+            {
+                /* Sleep for some time before checking again */
+                std::this_thread::sleep_for(std::chrono::seconds(Get_Update_Time_Seconds));
+            }
         }
-        /* Sleep for some time before checking again */
-        std::this_thread::sleep_for(std::chrono::seconds(Get_Update_Time_Seconds));
+    }
+    else
+    {
+        std::cerr << "Error: Cannot find directory to the Git repository path." << std::endl;
     }
 }
 void Monitor::Start_Monitoring(void)
 {
     unsigned int Location{Application_Location};
+    /* Force line buffering for stdout */
+    setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
     for (const auto& Option : Commands)
     {
         /* Check for specific arguments */
         if (Option == "-r")
         {
             std::cout << "Start Monitoring For Any Updates\n";
-            Get_Update();
+            Wait_For_Update();
             Interface.Start_Target_Bootloader();
             std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
             if(Interface.Say_Hi())

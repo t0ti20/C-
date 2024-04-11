@@ -23,7 +23,7 @@
 /*****************************************
 ---------    Configurations     ----------
 *****************************************/
-//#define ENABLE_DEBUG                            (4)
+#define ENABLE_DEBUG                            (4)
 constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
 constexpr unsigned int Sending_Delay_MS         {100};
@@ -499,10 +499,15 @@ Monitor(Services &User_Interface,const std::string &Repository_Path,const std::s
 void Start_Monitoring();
 private:
 bool Check_For_Update(void);
-void Get_Update(void);
+bool Build_Directory(void);
+bool Update_Available(void);
+bool Download_Binary(void);
+bool Get_Update(void);
+void Wait_For_Update(void);
 /************** Variables ***************/
 private:
 std::string Binary_Repository{};
+std::string Remote_Repository{"https://github.com/t0ti20/FOTA"};
 std::string File_Location{};
 std::vector<std::string> &Commands;
 Services &Interface;
