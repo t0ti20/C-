@@ -12,6 +12,7 @@
 -----------     INCLUDES     -------------
 *****************************************/
 #include "Bootloader_Interface.hpp"
+#include <chrono>
 /*****************************************
 ----------    GLOBAL DATA     ------------
 *****************************************/
@@ -974,9 +975,7 @@ void Services::Update_Buffer(void)
 
 void Services::Exit_Bootloader(void)
 {
-    unsigned int Address{Booting_Flag};
-    unsigned int Data{};
-    Write_Data(Address,Data);
+    Say_Bye();
 }
 void Services::Write_Data(void)
 {
@@ -1014,9 +1013,18 @@ bool Services::Say_Hi(void)
 {
     return Send_Frame(Bootloader_Command_Say_Hi);
 }
+bool Services::Say_Bye(void)
+{
+    return Send_Frame(Bootloader_Command_Say_Bye);
+}
 void Services::Start_Target_Bootloader(void)
 {
-    Halt_MCU();
+    bool Status{true};
+    while(Status)
+    {
+        Status=!Say_Hi();
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
 }
 /*****************************************
 -------------    Monitor     -------------
@@ -1147,9 +1155,10 @@ void Monitor::Wait_For_Update(void)
 {
     if(Build_Directory())
     {
+        std::cout << "Start Monitoring For Any Updates\n";
+        std::cout << "Waiting For An Update\n";
         while(true)
         {
-            std::cout << "Waiting For Update" << std::endl;
             /* Check If There Is Update */
             if(Update_Available())
             {
@@ -1169,9 +1178,32 @@ void Monitor::Wait_For_Update(void)
         std::cerr << "Error: Cannot find directory to the Git repository path." << std::endl;
     }
 }
-void Monitor::Start_Monitoring(void)
+void Monitor::Update_Application(void)
 {
     unsigned int Location{Application_Location};
+    Wait_For_Update();
+    std::cout<<"Update Will Be Flashed Next Reset"<<std::endl;
+    std::cout<<"Waiting For Reset"<<std::endl;
+    Interface.Start_Target_Bootloader();
+    std::cout<<"Bootloader Started On Target"<<std::endl;
+    std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
+    if(Interface.Say_Hi())
+    {
+        std::cout<<"Start Flashing Application : "<<File_Location<<std::endl;
+        if(Interface.Flash_Application(Location,File_Location))
+        {
+            Interface.Exit_Bootloader();
+            std::cout << "Application Flashed Successfully\n";
+        }
+    }
+    else
+    {
+        std::cout << "Application Downloadded But MCU Not Connected\n";
+    }
+}
+void Monitor::Start_Monitoring(void)
+{
+    
     /* Force line buffering for stdout */
     setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
     for (const auto& Option : Commands)
@@ -1179,23 +1211,7 @@ void Monitor::Start_Monitoring(void)
         /* Check for specific arguments */
         if (Option == "-r")
         {
-            std::cout << "Start Monitoring For Any Updates\n";
-            Wait_For_Update();
-            Interface.Start_Target_Bootloader();
-            std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
-            if(Interface.Say_Hi())
-            {
-                std::cout<<"Start Flashing Application : "<<File_Location<<std::endl;
-                if(Interface.Flash_Application(Location,File_Location))
-                {
-                    Interface.Exit_Bootloader();
-                    std::cout << "Application Flashed Successfully\n";
-                }
-            }
-            else
-            {
-                std::cout << "Application Downloadded But MCU Not Connected\n";
-            }
+            while(true){Update_Application();}
         }
         else
         {
@@ -1280,7 +1296,15 @@ void User_Interface::Start_Application(void)
     bool Flag{true};
     std::string Chosen_Option{};
     /* Initialize Default Location For Serial And GPIO */
-    Start_Target_Bootloader();
+    if(!Say_Hi())
+    {
+        std::cout<<Green;
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        std::cout<<Yellow<<" -> "<<Default<<"Please Reset Target To Start Bootloader ...\n"<<Green;
+        std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+        Start_Target_Bootloader();
+        if(system("clear")){};
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
     while(Flag)
     {

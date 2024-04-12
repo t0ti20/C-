@@ -23,7 +23,7 @@
 /*****************************************
 ---------    Configurations     ----------
 *****************************************/
-#define ENABLE_DEBUG                            (4)
+//#define ENABLE_DEBUG                            (4)
 constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
 constexpr unsigned int Sending_Delay_MS         {100};
@@ -233,14 +233,15 @@ class Services : private Serial_Port
 private:
 enum Bootloader_Command_t 
 {
-    Bootloader_Command_Get_Help             =(1),
-    Bootloader_Command_Get_ID               =(2),
-    Bootloader_Command_Get_Version          =(3),
+    Bootloader_Command_Get_Help            =(1),
+    Bootloader_Command_Get_ID              =(2),
+    Bootloader_Command_Get_Version         =(3),
     Bootloader_Command_Erase_Flash          =(4),
     Bootloader_Command_Flash_Application    =(5),
     Bootloader_Command_Address_Jump         =(6),
     Bootloader_Command_Say_Hi               =(7),
-    Bootloader_Command_Send_Data           =(8)
+    Bootloader_Command_Say_Bye              =(8),
+    Bootloader_Command_Send_Data            =(9)
 };
 /*************** Methods ****************/
 public:
@@ -392,6 +393,7 @@ bool Write_Data(unsigned int &Address,unsigned int &Data);
 void Exit_Bootloader(void);
 void Start_Target_Bootloader(void);
 bool Say_Hi(void);
+bool Say_Bye(void);
 private:
 /****************************************************************************************************
 * Function Name   : Get_Acknowledge
@@ -498,6 +500,7 @@ public:
 Monitor(Services &User_Interface,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments);
 void Start_Monitoring();
 private:
+void Update_Application(void);
 bool Check_For_Update(void);
 bool Build_Directory(void);
 bool Update_Available(void);
