@@ -14,12 +14,14 @@
 /*****************************************
 ------------    Includes     -------------
 *****************************************/
+#include <regex>
 #include <vector>
 #include <thread>
 #include <chrono>
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 #include <boost/asio.hpp>
 /*****************************************
 ---------    Configurations     ----------
@@ -260,6 +262,10 @@ public:
 * Notes           : - This constructor initializes the Services object by calling the constructor of the base class (Serial_Port) with the specified device location and GPIO manage pin.
 *****************************************************************************************************/
 Services(const std::string &Device_Location,const std::string &GPIO_Manage_Pin);
+
+unsigned int Get_Version(const std::string& Location);
+bool Set_Version(std::string &File_Location);
+bool Get_File(std::string &File_Location);
 /****************************************************************************************************
 * Function Name   : Get_Version
 * Class           : Services
@@ -667,7 +673,7 @@ void Wait_For_Update(void);
 private:
 std::string Binary_Repository{};
 std::string Remote_Repository{"https://github.com/t0ti20/FOTA"};
-std::string File_Location{};
+std::string Directory_Location{};
 std::vector<std::string> &Commands;
 Services &Interface;
 };

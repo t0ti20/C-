@@ -21,7 +21,7 @@ constexpr const char Serial_Driver[]            {"/dev/ttyS0"};
 /* Repo Location To Be Downloadded */
 constexpr const char Binary_Repo[]              {"/home/root/FOTA"};
 /* Application Binary File */
-constexpr const char Binary_File[]              {"/Application/Build/Blink.bin"};
+constexpr const char Binary_File[]              {"/Application/Build/"};
 /*****************************************
 ----------   Main Application   ----------
 *****************************************/

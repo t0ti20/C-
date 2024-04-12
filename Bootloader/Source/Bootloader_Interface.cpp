@@ -708,17 +708,54 @@ bool Services::Send_Frame(std::vector<unsigned char> &Data)
 *                   - If the command is successfully sent, it sends the payload in chunks and returns true.
 *                   - If any error occurs during the process, it returns false.
 *****************************************************************************************************/
+unsigned int Services::Get_Version(const std::string& Location)
+{
+    unsigned char ID{},Major{},Minor{};     
+    std::istringstream iss(Location);
+    std::string Number;
+    size_t Counter{};
+    while (std::getline(iss,Number,'.'))
+    {
+        Counter++;
+        if (Counter == 2){ID = std::stoi(Number);}
+        else if (Counter == 3){Major = std::stoi(Number);}
+        else if (Counter == 4){Minor = std::stoi(Number);} 
+    }
+    return((Minor<<24)|(Major<<16)|(ID<<8));
+}
+
+bool Services::Set_Version(std::string &File_Location)
+{
+    bool Status{};
+    unsigned char ID{},Major{},Minor{};
+    unsigned int Version{Get_Version(File_Location)};
+    unsigned int Total_Pages{1};
+    unsigned int Start_Page{Application_Location-1};
+    unsigned int Boot_Version_Address{Booting_Flag};
+    Status=Erase_Flash(Start_Page,Total_Pages);
+    if(Status)
+    {
+        Status=Write_Data(Boot_Version_Address,Version);
+    }
+    return Status;
+}
 bool Services::Flash_Application(unsigned int &Start_Page, std::string &File_Location)
 {
     std::vector<unsigned char> Payload{};
     bool Status{Read_File(Payload,File_Location)};
-    /* Prepare data bytes */
-    std::vector<unsigned char> Data_Bytes{static_cast<unsigned char>(Start_Page), static_cast<unsigned char>((Payload.size() / 250) + 1)};
-    /* Send flash application command */
-    if(Status==Send_Frame(Bootloader_Command_Flash_Application,Data_Bytes))
+    if(Status)
     {
-        /* Send payload */
-        if(Send_Frame(Payload)){Status=true;}
+        /* Prepare data bytes */
+        std::vector<unsigned char> Data_Bytes{static_cast<unsigned char>(Start_Page), static_cast<unsigned char>((Payload.size() / 250) + 1)};
+        /* Send flash application command */
+        if(Status==Send_Frame(Bootloader_Command_Flash_Application,Data_Bytes))
+        {
+            /* Send payload */
+            if(Send_Frame(Payload))
+            {
+                Status=Set_Version(File_Location);
+            }
+        }
     }
     return Status;
 }
@@ -737,9 +774,36 @@ bool Services::Flash_Application(unsigned int &Start_Page, std::string &File_Loc
 *                   - After flashing, it prints a success message and resets the MCU to start the application.
 *                   - If any error occurs during the process, it prints an error message.
 *****************************************************************************************************/
+bool Services::Get_File(std::string &Location)
+{
+    bool Status{};
+    std::regex Pattern(".*\\.bin");
+    std::ifstream File(Location);
+    if(Location.find(".bin")==std::string::npos)
+    {
+        
+        for (const auto& Current_File : std::filesystem::directory_iterator(Location))
+        {
+            if (std::filesystem::is_regular_file(Current_File) && std::regex_match(Current_File.path().filename().string(), Pattern))
+            {
+                Location=Current_File.path();
+                Status=true;
+                break;
+            }
+        }
+    }
+    else if (File.is_open())
+    {
+        Status=true;
+        /* Close the file */
+        std::cout<<"=====";
+        File.close();
+    }
+    return Status;
+}
 void Services::Flash_Application(void)
 {
-    std::string File_Location{"/home/root/FOTA/Application/Build/Blink.bin"};
+    std::string File_Location{"/home/root/FOTA/Application/Build"};
     bool Animation_Running{true};
     auto Loading = [&Animation_Running]() 
     {
@@ -759,7 +823,7 @@ void Services::Flash_Application(void)
     std::cout<<Yellow<<" -> "<<Default<<"Please Enter Start Page : ";
     std::cin>>Start_Page;
     /* Prompt user to edit file location */
-    std::cout<<Yellow<<" -> "<<Default<<"Binary File Location ["<<File_Location<<"] Want To Edit [N/y] : ";
+    std::cout<<Yellow<<" -> "<<Default<<"Binary File Or Directory Location ["<<File_Location<<"] Want To Edit [N/y] : ";
     std::cin.ignore();
     std::getline(std::cin, Input);
     /* If user wants to edit file location */
@@ -768,22 +832,29 @@ void Services::Flash_Application(void)
         std::cout<<Yellow<<" -> "<<Default<<"Please Enter File Location : ";
         std::cin>>File_Location;
     }
-    std::cout<<Yellow<<" -> "<<Default<<"Flashing Application ["<<File_Location<<"]\n";
-    std::thread Animation_Thread(Loading);
-    /* Try Flasing Application */
-    if(Flash_Application(Start_Page, File_Location))
+    if(Get_File(File_Location))
     {
-        Animation_Running=false;
-        Animation_Thread.join();                                       
-        std::cout<<Green<<"================================ "<<Default<<"Done Flashing Application"<<Green<<" ===============================\n";
-        /* Reset MCU To Start Application */
-        Halt_MCU();
+        std::cout<<Yellow<<" -> "<<Default<<"Flashing Application ["<<File_Location<<"]\n";
+        std::thread Animation_Thread(Loading);
+        /* Try Flasing Application */
+        if(Flash_Application(Start_Page, File_Location))
+        {
+            Animation_Running=false;
+            Animation_Thread.join();                                       
+            std::cout<<Green<<"================================ "<<Default<<"Done Flashing Application"<<Green<<" ===============================\n";
+            /* Reset MCU To Start Application */
+            Halt_MCU();
+        }
+        else
+        {
+            Animation_Running=false;
+            Animation_Thread.join();
+            std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
+        }
     }
     else
     {
-        Animation_Running=false;
-        Animation_Thread.join();
-        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
+        std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Can't Find Binary File"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
     }
 }
 
@@ -1133,7 +1204,7 @@ void Services::Start_Target_Bootloader(void)
 * Notes           : - This constructor initializes the Monitor object with the specified services, repository path, binary location, and arguments.
 *****************************************************************************************************/
 Monitor::Monitor(Services &User_Interface,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments)
-:Interface{User_Interface},Binary_Repository{Repository_Path},File_Location{Binary_Location},Commands{Arguments}{}
+:Interface{User_Interface},Binary_Repository{Repository_Path},Directory_Location{Binary_Location},Commands{Arguments}{}
 
 /****************************************************************************************************
 * Function Name   : Get_Update
@@ -1308,6 +1379,7 @@ void Monitor::Wait_For_Update(void)
 void Monitor::Update_Application(void)
 {
     unsigned int Location{Application_Location};
+    std::string File_Location{Directory_Location};
     Wait_For_Update();
     std::cout<<"Update Will Be Flashed Next Reset"<<std::endl;
     std::cout<<"Waiting For Reset"<<std::endl;
@@ -1316,11 +1388,18 @@ void Monitor::Update_Application(void)
     std::this_thread::sleep_for(std::chrono::milliseconds(Sending_Delay_MS)); 
     if(Interface.Say_Hi())
     {
-        std::cout<<"Start Flashing Application : "<<File_Location<<std::endl;
-        if(Interface.Flash_Application(Location,File_Location))
+        if(Interface.Get_File(File_Location))
         {
-            Interface.Exit_Bootloader();
-            std::cout << "Application Flashed Successfully\n";
+            std::cout<<"Start Flashing Application : "<<File_Location<<std::endl;
+            if(Interface.Flash_Application(Location,File_Location))
+            {
+                Interface.Exit_Bootloader();
+                std::cout << "Application Flashed Successfully\n";
+            }
+        }
+        else
+        {
+            std::cout << "Cant Find Binary File in ["<<File_Location<<"}\n";
         }
     }
     else
