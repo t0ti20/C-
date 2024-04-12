@@ -14,17 +14,24 @@
 /*****************************************
 ---------    Configurations     ----------
 *****************************************/
+/* Old Vesrion Using External Interrupt For Auto Reset */
 constexpr const char GPIO_Pin[]                 {"18"};
+/* Serial Driver Used */
 constexpr const char Serial_Driver[]            {"/dev/ttyS0"};
+/* Repo Location To Be Downloadded */
 constexpr const char Binary_Repo[]              {"/home/root/FOTA"};
+/* Application Binary File */
 constexpr const char Binary_File[]              {"/Application/Build/Blink.bin"};
 /*****************************************
 ----------   Main Application   ----------
 *****************************************/
 int main(int argc, char* argv[]) 
 {
+    /* Use Bootloader Namespace */
     using namespace Bootloader;
+    /* Store Program Arguments */
     std::vector<std::string> Arguments;
+    /* Setup Appliaction Configuration */
     User_Interface Application
     {
         Serial_Driver,
@@ -33,11 +40,14 @@ int main(int argc, char* argv[])
         std::string(Binary_Repo)+std::string(Binary_File),
         Arguments
     };
+    /* Store Entered Arguments */
     for (size_t Counter=1;Counter<argc;++Counter){Arguments.emplace_back(argv[Counter]);}
+    /* If There Is Arguments Start Monitoring Mode */
     if(Arguments.size())
     {
         Application.Start_Monitoring();
     }
+    /* Start CLI Mode */
     else
     {
         if(system("clear")){};

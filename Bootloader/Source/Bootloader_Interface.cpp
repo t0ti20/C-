@@ -12,7 +12,6 @@
 -----------     INCLUDES     -------------
 *****************************************/
 #include "Bootloader_Interface.hpp"
-#include <chrono>
 /*****************************************
 ----------    GLOBAL DATA     ------------
 *****************************************/
@@ -21,6 +20,7 @@ constexpr const char Green[] = "\033[1;32m";
 constexpr const char Yellow[] = "\033[1;33m";
 constexpr const char Blue[] = "\033[1;34m";
 constexpr const char Default[] = "\033[0m";
+/****************************************/
 namespace Bootloader
 {
 /*****************************************
@@ -105,7 +105,7 @@ GPIO_Manage::~GPIO_Manage()
 *****************************************************************************************************/
 void GPIO_Manage::Halt_MCU(void)
 {
-    /* Toggle Pin To Generate Interrupt Tp Run Bootloader Application */
+    /* Toggle Pin To Generate Interrupt To Run Bootloader Application */
     Set_Pin();
     Clear_Pin();
 }
@@ -359,13 +359,16 @@ void Serial_Port::Receive_Data(size_t Size)
 /****************************************************************************************************
 * Function Name   : Receive_Data
 * Class           : Serial_Port
-* Namespace       : Bootloader
-* Description     : Reads a single byte of data from the serial port.
+* Namespace       : <Namespace>
+* Description     : Receives data from the serial port.
 * Parameters (in) : None
-* Parameters (out): None
-* Return value    : Unsigned char representing the read byte of data.
-* Notes           : - This function reads a single byte of data from the serial port using asynchronous read operation.
-*                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
+* Parameters (out): Data - Reference to the variable where received data will be stored.
+* Return value    : bool - True if data is successfully received, false otherwise.
+* Notes           : - This function performs an asynchronous read operation on the serial port.
+*                   - It sets up a timer to handle timeouts.
+*                   - If data is received before the timeout, it cancels the timer and returns true.
+*                   - If a timeout occurs, it cancels the asynchronous operation and returns false.
+*                   - Debugging information is printed if ENABLE_DEBUG is defined.
 *****************************************************************************************************/
 bool Serial_Port::Receive_Data(unsigned char &Data)
 {
@@ -401,6 +404,19 @@ bool Serial_Port::Receive_Data(unsigned char &Data)
 /*****************************************
 ------------    Services     -------------
 *****************************************/
+/****************************************************************************************************
+* Constructor Name: Services
+* Class           : Services
+* Description     : Initializes the Services object with the specified device location and GPIO manage pin.
+* Parameters (in) : Device_Location - Reference to the string containing the device location.
+*                   GPIO_Manage_Pin - Reference to the string containing the GPIO manage pin.
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This constructor initializes the Services object by calling the constructor of the base class (Serial_Port) with the specified device location and GPIO manage pin.
+*****************************************************************************************************/
+Services::Services(const std::string &Device_Location,const std::string &GPIO_Manage_Pin)
+:Serial_Port{Device_Location,GPIO_Manage_Pin}{}
+
 /****************************************************************************************************
 * Function Name   : Send_Frame
 * Class           : Services
@@ -581,14 +597,17 @@ void Services::Get_Help(void)
 /****************************************************************************************************
 * Function Name   : Get_Version
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Sends a get version command to the controller and retrieves chip ID, major, and minor version.
+* Namespace       : <Namespace>
+* Description     : Retrieves the version information from the controller.
 * Parameters (in) : None
-* Parameters (out): None
-* Return value    : None
-* Notes           : - This function sends a get version command to the controller.
-*                   - It retrieves chip ID, major, and minor version from the received data buffer and prints them.
-*                   - It prints an error message if no acknowledgment is received after sending the get version command.
+* Parameters (out): ID    - Reference to store the chip ID.
+*                   Major - Reference to store the major version.
+*                   Minor - Reference to store the minor version.
+* Return value    : bool - True if the version information is successfully retrieved, false otherwise.
+* Notes           : - This function sends a Get_Version frame to the controller and retrieves the version information.
+*                   - If the frame is sent successfully and an acknowledgment is received, it assigns the chip ID, major
+                      and minor versions to the provided references and returns true.
+*                   - If no acknowledgment is received, it returns false.
 *****************************************************************************************************/
 bool Services::Get_Version(unsigned int &ID,unsigned int &Major,unsigned int &Minor)
 {
@@ -602,6 +621,19 @@ bool Services::Get_Version(unsigned int &ID,unsigned int &Major,unsigned int &Mi
     }
     return Status;
 }
+
+/****************************************************************************************************
+* Function Name   : Get_Version
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Retrieves the version information from the controller.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : void
+* Notes           : - This function sends a Get_Version frame to the controller and retrieves the version information.
+*                   - If the frame is sent successfully and an acknowledgment is received, it prints the chip ID, major, and minor versions.
+*                   - If no acknowledgment is received, it prints an error message.
+*****************************************************************************************************/
 void Services::Get_Version(void)
 {
     unsigned int ID{};
@@ -625,16 +657,14 @@ void Services::Get_Version(void)
 /****************************************************************************************************
 * Function Name   : Send_Frame
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Sends data frames to the controller.
-* Parameters (in) : Data - The data to be sent in the frames.
+* Namespace       : <Namespace>
+* Description     : Sends the data frame to the controller.
+* Parameters (in) : Data - Reference to the vector containing data to be sent.
 * Parameters (out): None
-* Return value    : bool - True if all frames are sent successfully and acknowledged, false otherwise.
-* Notes           : - This function sends data frames to the controller. It breaks down the data into
-*                     frames of maximum 250 bytes and sends them one by one.
-*                   - It checks for acknowledgment after sending each frame. If acknowledgment is not
-*                     received, it stops sending further frames and returns false.
-*                   - It delays between sending each frame to ensure reliable communication.
+* Return value    : bool - True if the frame is successfully sent and acknowledged, false otherwise.
+* Notes           : - This function sends the data frame to the controller in chunks of maximum 250 bytes.
+*                   - It waits for acknowledgment after sending each chunk.
+*                   - If acknowledgment is not received, it returns false.
 *****************************************************************************************************/
 bool Services::Send_Frame(std::vector<unsigned char> &Data)
 {
@@ -667,19 +697,16 @@ bool Services::Send_Frame(std::vector<unsigned char> &Data)
 /****************************************************************************************************
 * Function Name   : Flash_Application
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Sends a flash application command to the controller with the specified start page
-*                   and binary payload.
-* Parameters (in) : Start_Page   - The start page for flashing.
-*                   Payload      - The binary payload to be flashed.
+* Namespace       : <Namespace>
+* Description     : Flashes the application onto the controller.
+* Parameters (in) : Start_Page     - Reference to the starting page of the flash memory.
+*                   File_Location  - Reference to the location of the file containing the application.
 * Parameters (out): None
-* Return value    : None
-* Notes           : - This function prepares the data bytes containing the start page and payload size,
-*                     and sends a flash application command to the controller.
-*                   - It then sends the payload frames to the controller.
-*                   - It prints a message if the payload frame is sent successfully,
-*                     otherwise, it prints an error message if an error occurs while sending frames
-*                     or if no acknowledgment is received after sending the payload.
+* Return value    : bool - True if the application is successfully flashed, false otherwise.
+* Notes           : - This function reads the file containing the application into a vector.
+*                   - It sends the flash application command along with the data bytes to the controller.
+*                   - If the command is successfully sent, it sends the payload in chunks and returns true.
+*                   - If any error occurs during the process, it returns false.
 *****************************************************************************************************/
 bool Services::Flash_Application(unsigned int &Start_Page, std::string &File_Location)
 {
@@ -699,15 +726,16 @@ bool Services::Flash_Application(unsigned int &Start_Page, std::string &File_Loc
 /****************************************************************************************************
 * Function Name   : Flash_Application
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Prompts the user to enter the start page and binary file location, and then
-*                   flashes the application to the controller.
+* Namespace       : <Namespace>
+* Description     : Flashes the application onto the controller.
 * Parameters (in) : None
 * Parameters (out): None
-* Return value    : None
-* Notes           : - This function prompts the user to enter the start page and binary file location.
-*                   - It then reads the binary file and flashes the application to the controller
-*                     with the specified start page and binary payload.
+* Return value    : void
+* Notes           : - This function prompts the user to enter the start page and file location.
+*                   - If the user wants to edit the file location, it prompts again for the new location.
+*                   - It displays a loading animation while flashing the application.
+*                   - After flashing, it prints a success message and resets the MCU to start the application.
+*                   - If any error occurs during the process, it prints an error message.
 *****************************************************************************************************/
 void Services::Flash_Application(void)
 {
@@ -742,11 +770,13 @@ void Services::Flash_Application(void)
     }
     std::cout<<Yellow<<" -> "<<Default<<"Flashing Application ["<<File_Location<<"]\n";
     std::thread Animation_Thread(Loading);
+    /* Try Flasing Application */
     if(Flash_Application(Start_Page, File_Location))
     {
         Animation_Running=false;
         Animation_Thread.join();                                       
         std::cout<<Green<<"================================ "<<Default<<"Done Flashing Application"<<Green<<" ===============================\n";
+        /* Reset MCU To Start Application */
         Halt_MCU();
     }
     else
@@ -755,8 +785,6 @@ void Services::Flash_Application(void)
         Animation_Thread.join();
         std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"Error In Sending Frames"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n";
     }
-
-
 }
 
 /****************************************************************************************************
@@ -877,14 +905,13 @@ void Services::Jump_Address(void)
 /****************************************************************************************************
 * Function Name   : Get_ID
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Sends a Get ID frame to the controller and retrieves the built-in ID.
+* Namespace       : <Namespace>
+* Description     : Retrieves the built-in ID from the controller.
 * Parameters (in) : None
-* Parameters (out): None
-* Return value    : None
-* Notes           : - This function sends a Get ID frame to the controller using Send_Frame function.
-*                   - It then retrieves the built-in ID from the received data buffer and prints it.
-*                   - If no acknowledgment is received, it prints an error message.
+* Parameters (out): Built_ID - Reference to a vector to store the built-in ID.
+* Return value    : bool - True if the built-in ID is successfully retrieved, false otherwise.
+* Notes           : - This function sends the get ID command to the controller.
+*                   - If the command is successful and the data is received, it stores the built-in ID in the provided vector.
 *****************************************************************************************************/
 bool Services::Get_ID(std::vector<unsigned int> &Built_ID)
 {
@@ -899,6 +926,19 @@ bool Services::Get_ID(std::vector<unsigned int> &Built_ID)
     }
     return Status;
 }
+
+/****************************************************************************************************
+* Function Name   : Get_ID
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Retrieves the built-in ID from the controller and prints it.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : void
+* Notes           : - This function sends the get ID command to the controller and retrieves the built-in ID.
+*                   - If the command is successful and the data is received, it prints the built-in ID.
+*                   - If no acknowledgment is received, it prints an error message.
+*****************************************************************************************************/
 void Services::Get_ID(void)
 {
     std::vector<unsigned int> ID{};
@@ -916,30 +956,14 @@ void Services::Get_ID(void)
 }
 
 /****************************************************************************************************
-* Constructor Name: Services
-* Class           : Services
-* Namespace       : Bootloader
-* Description     : Initializes services with a serial port and GPIO pin for control.
-* Parameters (in) : Device_Location   - The location of the serial device.
-*                   GPIO_Manage_Pin  - The GPIO pin used for managing the serial port.
-* Parameters (out): None
-* Return value    : None
-* Notes           : - This constructor initializes services with a serial port and GPIO pin for control.
-*                   - It initializes the Serial_Port base class with the provided device location and GPIO pin.
-*****************************************************************************************************/
-Services::Services(const std::string &Device_Location,const std::string &GPIO_Manage_Pin)
-:Serial_Port{Device_Location,GPIO_Manage_Pin}{}
-
-/****************************************************************************************************
 * Function Name   : Get_Acknowledge
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Reads a byte of data from the serial port and checks if it matches the ACK value.
+* Namespace       : <Namespace>
+* Description     : Receives acknowledgment from the controller.
 * Parameters (in) : None
 * Parameters (out): None
-* Return value    : Boolean indicating whether ACK is received.
-* Notes           : - This function reads a byte of data from the serial port and checks if it matches
-*                     the ACK value defined in Bootloader_State_ACK.
+* Return value    : bool - True if acknowledgment (ACK) is received, false otherwise.
+* Notes           : - This function receives data from the controller and checks if it matches the acknowledgment (ACK) state.
 *****************************************************************************************************/
 bool Services::Get_Acknowledge(void)
 {
@@ -971,12 +995,33 @@ void Services::Update_Buffer(void)
     }
 }
 
-
-
+/****************************************************************************************************
+* Function Name   : Exit_Bootloader
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Exits the bootloader mode.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function sends a "Say Bye" command to the controller to exit the bootloader mode.
+*****************************************************************************************************/
 void Services::Exit_Bootloader(void)
 {
     Say_Bye();
 }
+
+/****************************************************************************************************
+* Function Name   : Write_Data
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Writes data to the specified address.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : void
+* Notes           : - This function prompts the user to enter the desired address and data to write in hexadecimal format.
+*                   - It then sends the write data command to the controller.
+*                   - If the command is successful, it prints a success message. Otherwise, it prints an error message.
+*****************************************************************************************************/
 void Services::Write_Data(void)
 {
     unsigned int Address{};
@@ -999,24 +1044,69 @@ void Services::Write_Data(void)
         std::cout<<Red<<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx "<<Default<<"There Is No ACK After Sending Writing Data"<<Red<<" xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"<<std::endl;
     }
 }
+
+/****************************************************************************************************
+* Function Name   : Write_Data
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Writes data to the specified address.
+* Parameters (in) : Address - Reference to the address where data will be written.
+*                   Data    - Reference to the data to be written.
+* Parameters (out): None
+* Return value    : bool - True if data is successfully written, false otherwise.
+* Notes           : - This function constructs the data bytes to be sent, including the address and data.
+*                   - It then sends the write data command along with the data bytes to the controller.
+*****************************************************************************************************/
 bool Services::Write_Data(unsigned int &Address,unsigned int &Data)
 {
     bool Status{};
     std::vector<unsigned char> Sending_Bytes(sizeof(Address) + sizeof(Data));
     std::memcpy(Sending_Bytes.data(), &Address, sizeof(Address));
     std::memcpy(Sending_Bytes.data() + sizeof(Address), &Data, sizeof(Data));
-    /* Send erase flash command */
     if(Send_Frame(Bootloader_Command_Send_Data, Sending_Bytes)){Status=true;}
     return Status;
 }
+
+/****************************************************************************************************
+* Function Name   : Say_Hi
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Sends a "Say Hi" command to the controller.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if the "Say Hi" command is successfully sent, false otherwise.
+* Notes           : - This function sends the "Say Hi" command to the controller.
+*****************************************************************************************************/
 bool Services::Say_Hi(void)
 {
     return Send_Frame(Bootloader_Command_Say_Hi);
 }
+
+/****************************************************************************************************
+* Function Name   : Say_Bye
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Sends a "Say Bye" command to the controller.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if the "Say Bye" command is successfully sent, false otherwise.
+* Notes           : - This function sends the "Say Bye" command to the controller.
+*****************************************************************************************************/
 bool Services::Say_Bye(void)
 {
     return Send_Frame(Bootloader_Command_Say_Bye);
 }
+
+/****************************************************************************************************
+* Function Name   : Start_Target_Bootloader
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Starts the target bootloader by sending a "Say Hi" command repeatedly.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function repeatedly sends a "Say Hi" command to the controller until it receives an acknowledgment.
+*****************************************************************************************************/
 void Services::Start_Target_Bootloader(void)
 {
     bool Status{true};
@@ -1026,33 +1116,33 @@ void Services::Start_Target_Bootloader(void)
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 }
+
 /*****************************************
 -------------    Monitor     -------------
 *****************************************/
 /****************************************************************************************************
-* Function Name   : Monitor
+* Constructor Name: Monitor
 * Class           : Monitor
-* Description     : Constructor for the Monitor class.
-* Parameters (in) : Repository_Path - The path to the Git repository.
-*                   Arguments       - Vector of command-line arguments.
+* Description     : Initializes the Monitor object with the specified services, repository path, binary location, and arguments.
+* Parameters (in) : User_Interface   - Reference to the Services object for user interface.
+*                   Repository_Path  - Reference to the string containing the repository path.
+*                   Binary_Location - Reference to the string containing the binary location.
+*                   Arguments        - Reference to the vector containing command-line arguments.
 * Parameters (out): None
 * Return value    : None
-* Notes           : - This constructor initializes the Monitor class with the provided Git repository path
-*                     and command-line arguments.
+* Notes           : - This constructor initializes the Monitor object with the specified services, repository path, binary location, and arguments.
 *****************************************************************************************************/
 Monitor::Monitor(Services &User_Interface,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments)
 :Interface{User_Interface},Binary_Repository{Repository_Path},File_Location{Binary_Location},Commands{Arguments}{}
+
 /****************************************************************************************************
-* Function Name   : Check_For_Update
+* Function Name   : Get_Update
 * Class           : Monitor
-* Description     : Checks for updates in the Git repository.
+* Description     : Retrieves updates from the repository using git pull command.
 * Parameters (in) : None
 * Parameters (out): None
-* Return value    : bool - True if an update is available, false otherwise.
-* Notes           : - This function changes the directory to the Git repository path and runs
-*                     the "git fetch origin" command to check for updates from the remote repository.
-*                   - It reads the output of the command and searches for the presence of "origin/master"
-*                     in the output to determine if an update is available.
+* Return value    : bool - True if the update is successful, false otherwise.
+* Notes           : - This function executes the git pull command to retrieve updates from the repository.
 *****************************************************************************************************/
 bool Monitor::Get_Update(void)
 {
@@ -1071,6 +1161,17 @@ bool Monitor::Get_Update(void)
     }
     return Status;
 }
+
+/****************************************************************************************************
+* Function Name   : Update_Available
+* Class           : Monitor
+* Description     : Checks if updates are available in the repository by executing git fetch command.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if updates are available, false otherwise.
+* Notes           : - This function executes the git fetch command to check for updates in the repository.
+*                   - It checks if "origin/master" is found in the command output to determine if updates are available.
+*****************************************************************************************************/
 bool Monitor::Update_Available(void)
 {
     bool Status{};
@@ -1102,6 +1203,17 @@ bool Monitor::Update_Available(void)
     }
     return Status;
 }
+
+/****************************************************************************************************
+* Function Name   : Build_Directory
+* Class           : Monitor
+* Description     : Changes to the binary repository directory or downloads the binary if directory change fails.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if directory change or binary download is successful, false otherwise.
+* Notes           : - This function tries to change to the binary repository directory.
+*                   - If the directory change fails, it calls Download_Binary to download the binary.
+*****************************************************************************************************/
 bool Monitor::Build_Directory(void)
 {
     bool Status{};
@@ -1115,6 +1227,16 @@ bool Monitor::Build_Directory(void)
     }
     return Status;
 }
+
+/****************************************************************************************************
+* Function Name   : Download_Binary
+* Class           : Monitor
+* Description     : Downloads the binary from the remote repository using git clone command.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if binary download is successful, false otherwise.
+* Notes           : - This function executes the git clone command to download the binary from the remote repository.
+*****************************************************************************************************/
 bool Monitor::Download_Binary(void)
 {
     std::string Output{};
@@ -1132,24 +1254,18 @@ bool Monitor::Download_Binary(void)
     }
     return Status;
 }
-bool Monitor::Check_For_Update(void)
-{
-    /* Flag to indicate if an update is available */
-    bool Update{};
-    
-    return Update;
-}
+
 /****************************************************************************************************
-* Function Name   : Start_Monitoring
+* Function Name   : Wait_For_Update
 * Class           : Monitor
-* Description     : Starts monitoring for updates in the Git repository.
+* Description     : Waits for updates by checking for updates in the repository and downloading them if available.
 * Parameters (in) : None
 * Parameters (out): None
 * Return value    : None
-* Notes           : - This function continuously checks for updates in the Git repository by calling
-*                     the Check_For_Update function.
-*                   - If an update is detected, it prints a message indicating changes.
-*                   - It sleeps for a specified duration before checking for updates again.
+* Notes           : - This function first tries to build the directory by calling Build_Directory.
+*                   - If directory build is successful, it starts monitoring for updates.
+*                   - It continuously checks for updates in the repository using Update_Available.
+*                   - If an update is available, it downloads the update using Get_Update.
 *****************************************************************************************************/
 void Monitor::Wait_For_Update(void)
 {
@@ -1178,6 +1294,17 @@ void Monitor::Wait_For_Update(void)
         std::cerr << "Error: Cannot find directory to the Git repository path." << std::endl;
     }
 }
+
+/****************************************************************************************************
+* Function Name   : Update_Application
+* Class           : Monitor
+* Description     : Updates the application by downloading the update and flashing it.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function waits for updates, then flashes the application with the downloaded update.
+*                   - It starts the target bootloader, waits for reset, and then flashes the application.
+*****************************************************************************************************/
 void Monitor::Update_Application(void)
 {
     unsigned int Location{Application_Location};
@@ -1201,59 +1328,86 @@ void Monitor::Update_Application(void)
         std::cout << "Application Downloadded But MCU Not Connected\n";
     }
 }
+
+/****************************************************************************************************
+* Function Name   : Start_Monitoring
+* Class           : Monitor
+* Description     : Starts the monitoring process based on the provided command-line arguments.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function checks the command-line arguments and starts the update service if required.
+*****************************************************************************************************/
 void Monitor::Start_Monitoring(void)
 {
-    
     /* Force line buffering for stdout */
     setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+    /* Check For Arguments */
     for (const auto& Option : Commands)
     {
-        /* Check for specific arguments */
+        /* Start Update Service */
         if (Option == "-r")
         {
-            while(true){Update_Application();}
+            while(true)
+            {
+                Update_Application();
+            }
         }
         else
         {
             std::cout << "Unknown option or parameter: " << Option << std::endl;
         }
     }
-
 }
+
 /*****************************************
 ---------    User Interface     ----------
 *****************************************/
 /****************************************************************************************************
-* Function Name   : User_Interface
+* Constructor Name: User_Interface
 * Class           : User_Interface
-* Namespace       : Bootloader
-* Description     : Constructor for the User_Interface class.
-* Parameters (in) : User_Interface_File - The file location for user interface initialization.
-*                   GPIO_Manage_Pin    - The GPIO pin for managing user interface operations.
+* Description     : Initializes the User_Interface object with the specified parameters.
+* Parameters (in) : User_Interface_File - Reference to the string containing the user interface file.
+*                   GPIO_Manage_Pin     - Reference to the string containing the GPIO manage pin.
+*                   Repository_Path     - Reference to the string containing the repository path.
+*                   Binary_Location     - Reference to the string containing the binary location.
+*                   Arguments           - Reference to the vector containing command-line arguments.
 * Parameters (out): None
 * Return value    : None
-* Notes           : - This constructor initializes the user interface using the provided file location
-*                     and GPIO pin for managing user interface operations.
-*                   - It initializes the User_Interface class by inheriting from the Services class,
-*                     which handles communication with the controller.
+* Notes           : - This constructor initializes the User_Interface object with the specified parameters.
+*                   - It initializes the Services and Monitor objects.
 *****************************************************************************************************/
 User_Interface::User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments)
 :Services{User_Interface_File,GPIO_Manage_Pin},
 Monitor{(*this),Repository_Path,Binary_Location,Arguments}{}
 
 /****************************************************************************************************
-* Function Name   : Start_Application
+* Destructor Name : ~User_Interface
 * Class           : User_Interface
-* Namespace       : Bootloader
-* Description     : Initiates the user interface for the application, providing various options
-*                   for user interaction.
+* Description     : Destructor for the User_Interface class.
 * Parameters (in) : None
 * Parameters (out): None
 * Return value    : None
-* Notes           : - The function utilizes a while loop to continuously display options to the user
-*                     until the user chooses to exit.
-*                   - User input is taken to select different options, and corresponding actions
-*                     are executed based on the chosen option.
+* Notes           : - This destructor ensures proper cleanup when the User_Interface object is destroyed.
+*                   - It exits the bootloader if connected and resets the console color.
+*****************************************************************************************************/
+User_Interface::~User_Interface()
+{
+    if(Say_Hi())
+    {
+        Exit_Bootloader();
+    }
+    std::cout<<Default;
+}
+
+/****************************************************************************************************
+* Function Name   : Print_Target_Info
+* Class           : User_Interface
+* Description     : Prints information about the target device.
+* Parameters (in) : State - Boolean indicating whether the target device is detected or not.
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function retrieves information about the target device and prints it.
 *****************************************************************************************************/
 void User_Interface::Print_Target_Info(bool State)
 {
@@ -1283,14 +1437,16 @@ void User_Interface::Print_Target_Info(bool State)
         std::cout<<Default;
     }
 }
-User_Interface::~User_Interface()
-{
-    if(Say_Hi())
-    {
-        Exit_Bootloader();
-    }
-    std::cout<<Default;
-}
+
+/****************************************************************************************************
+* Function Name   : Start_Application
+* Class           : User_Interface
+* Description     : Starts the application interface for user interaction.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function displays a menu for various options and handles user input accordingly.
+*****************************************************************************************************/
 void User_Interface::Start_Application(void)
 {
     bool Flag{true};
@@ -1359,6 +1515,7 @@ void User_Interface::Start_Application(void)
         if(system("clear")){};
     }
 }
+
 }
 /********************************************************************
  *  END OF FILE:  Bootloader_Interface.cpp 

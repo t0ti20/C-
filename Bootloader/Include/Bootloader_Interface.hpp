@@ -16,6 +16,7 @@
 *****************************************/
 #include <vector>
 #include <thread>
+#include <chrono>
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -182,13 +183,16 @@ void Send_Data(const unsigned char Data);
 /****************************************************************************************************
 * Function Name   : Receive_Data
 * Class           : Serial_Port
-* Namespace       : Bootloader
-* Description     : Reads a single byte of data from the serial port.
+* Namespace       : <Namespace>
+* Description     : Receives data from the serial port.
 * Parameters (in) : None
-* Parameters (out): None
-* Return value    : Unsigned char representing the read byte of data.
-* Notes           : - This function reads a single byte of data from the serial port using asynchronous read operation.
-*                   - If ENABLE_DEBUG is defined, it prints debugging information about the received frame.
+* Parameters (out): Data - Reference to the variable where received data will be stored.
+* Return value    : bool - True if data is successfully received, false otherwise.
+* Notes           : - This function performs an asynchronous read operation on the serial port.
+*                   - It sets up a timer to handle timeouts.
+*                   - If data is received before the timeout, it cancels the timer and returns true.
+*                   - If a timeout occurs, it cancels the asynchronous operation and returns false.
+*                   - Debugging information is printed if ENABLE_DEBUG is defined.
 *****************************************************************************************************/
 bool Receive_Data(unsigned char &Data);
 /****************************************************************************************************
@@ -248,29 +252,42 @@ public:
 /****************************************************************************************************
 * Constructor Name: Services
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Initializes services with a serial port and GPIO pin for control.
-* Parameters (in) : Device_Location   - The location of the serial device.
-*                   GPIO_Manage_Pin  - The GPIO pin used for managing the serial port.
+* Description     : Initializes the Services object with the specified device location and GPIO manage pin.
+* Parameters (in) : Device_Location - Reference to the string containing the device location.
+*                   GPIO_Manage_Pin - Reference to the string containing the GPIO manage pin.
 * Parameters (out): None
 * Return value    : None
-* Notes           : - This constructor initializes services with a serial port and GPIO pin for control.
-*                   - It initializes the Serial_Port base class with the provided device location and GPIO pin.
+* Notes           : - This constructor initializes the Services object by calling the constructor of the base class (Serial_Port) with the specified device location and GPIO manage pin.
 *****************************************************************************************************/
 Services(const std::string &Device_Location,const std::string &GPIO_Manage_Pin);
 /****************************************************************************************************
 * Function Name   : Get_Version
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Sends a get version command to the controller and retrieves chip ID, major, and minor version.
+* Namespace       : <Namespace>
+* Description     : Retrieves the version information from the controller.
 * Parameters (in) : None
 * Parameters (out): None
-* Return value    : None
-* Notes           : - This function sends a get version command to the controller.
-*                   - It retrieves chip ID, major, and minor version from the received data buffer and prints them.
-*                   - It prints an error message if no acknowledgment is received after sending the get version command.
+* Return value    : void
+* Notes           : - This function sends a Get_Version frame to the controller and retrieves the version information.
+*                   - If the frame is sent successfully and an acknowledgment is received, it prints the chip ID, major, and minor versions.
+*                   - If no acknowledgment is received, it prints an error message.
 *****************************************************************************************************/
 void Get_Version(void);
+/****************************************************************************************************
+* Function Name   : Get_Version
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Retrieves the version information from the controller.
+* Parameters (in) : None
+* Parameters (out): ID    - Reference to store the chip ID.
+*                   Major - Reference to store the major version.
+*                   Minor - Reference to store the minor version.
+* Return value    : bool - True if the version information is successfully retrieved, false otherwise.
+* Notes           : - This function sends a Get_Version frame to the controller and retrieves the version information.
+*                   - If the frame is sent successfully and an acknowledgment is received, it assigns the chip ID, major
+                      and minor versions to the provided references and returns true.
+*                   - If no acknowledgment is received, it returns false.
+*****************************************************************************************************/
 bool Get_Version(unsigned int &ID,unsigned int &Major,unsigned int &Minor);
 /****************************************************************************************************
 * Function Name   : Get_Help
@@ -288,16 +305,27 @@ void Get_Help(void);
 /****************************************************************************************************
 * Function Name   : Get_ID
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Sends a Get ID frame to the controller and retrieves the built-in ID.
+* Namespace       : <Namespace>
+* Description     : Retrieves the built-in ID from the controller and prints it.
 * Parameters (in) : None
 * Parameters (out): None
-* Return value    : None
-* Notes           : - This function sends a Get ID frame to the controller using Send_Frame function.
-*                   - It then retrieves the built-in ID from the received data buffer and prints it.
+* Return value    : void
+* Notes           : - This function sends the get ID command to the controller and retrieves the built-in ID.
+*                   - If the command is successful and the data is received, it prints the built-in ID.
 *                   - If no acknowledgment is received, it prints an error message.
 *****************************************************************************************************/
 void Get_ID(void);
+/****************************************************************************************************
+* Function Name   : Get_ID
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Retrieves the built-in ID from the controller.
+* Parameters (in) : None
+* Parameters (out): Built_ID - Reference to a vector to store the built-in ID.
+* Return value    : bool - True if the built-in ID is successfully retrieved, false otherwise.
+* Notes           : - This function sends the get ID command to the controller.
+*                   - If the command is successful and the data is received, it stores the built-in ID in the provided vector.
+*****************************************************************************************************/
 bool Get_ID(std::vector<unsigned int> &Built_ID);
 /****************************************************************************************************
 * Function Name   : Jump_Address
@@ -372,39 +400,98 @@ bool Erase_Flash(unsigned int &Start_Page, unsigned int &Pages_Count);
 /****************************************************************************************************
 * Function Name   : Flash_Application
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Sends a flash application command to the controller with the specified start page
-*                   and binary payload.
-* Parameters (in) : Start_Page   - The start page for flashing.
-*                   Payload      - The binary payload to be flashed.
+* Namespace       : <Namespace>
+* Description     : Flashes the application onto the controller.
+* Parameters (in) : Start_Page     - Reference to the starting page of the flash memory.
+*                   File_Location  - Reference to the location of the file containing the application.
 * Parameters (out): None
-* Return value    : None
-* Notes           : - This function prepares the data bytes containing the start page and payload size,
-*                     and sends a flash application command to the controller.
-*                   - It then sends the payload frames to the controller.
-*                   - It prints a message if the payload frame is sent successfully,
-*                     otherwise, it prints an error message if an error occurs while sending frames
-*                     or if no acknowledgment is received after sending the payload.
+* Return value    : bool - True if the application is successfully flashed, false otherwise.
+* Notes           : - This function reads the file containing the application into a vector.
+*                   - It sends the flash application command along with the data bytes to the controller.
+*                   - If the command is successfully sent, it sends the payload in chunks and returns true.
+*                   - If any error occurs during the process, it returns false.
 *****************************************************************************************************/
 bool Flash_Application(unsigned int &Start_Page,std::string &File_Location);
-
+/****************************************************************************************************
+* Function Name   : Write_Data
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Writes data to the specified address.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : void
+* Notes           : - This function prompts the user to enter the desired address and data to write in hexadecimal format.
+*                   - It then sends the write data command to the controller.
+*                   - If the command is successful, it prints a success message. Otherwise, it prints an error message.
+*****************************************************************************************************/
 void Write_Data(void);
+/****************************************************************************************************
+* Function Name   : Write_Data
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Writes data to the specified address.
+* Parameters (in) : Address - Reference to the address where data will be written.
+*                   Data    - Reference to the data to be written.
+* Parameters (out): None
+* Return value    : bool - True if data is successfully written, false otherwise.
+* Notes           : - This function constructs the data bytes to be sent, including the address and data.
+*                   - It then sends the write data command along with the data bytes to the controller.
+*****************************************************************************************************/
 bool Write_Data(unsigned int &Address,unsigned int &Data);
+/****************************************************************************************************
+* Function Name   : Start_Target_Bootloader
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Starts the target bootloader by sending a "Say Hi" command repeatedly.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function repeatedly sends a "Say Hi" command to the controller until it receives an acknowledgment.
+*****************************************************************************************************/
 void Exit_Bootloader(void);
+/****************************************************************************************************
+* Function Name   : Start_Target_Bootloader
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Starts the target bootloader by sending a "Say Hi" command repeatedly.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function repeatedly sends a "Say Hi" command to the controller until it receives an acknowledgment.
+*****************************************************************************************************/
 void Start_Target_Bootloader(void);
+/****************************************************************************************************
+* Function Name   : Say_Hi
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Sends a "Say Hi" command to the controller.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if the "Say Hi" command is successfully sent, false otherwise.
+* Notes           : - This function sends the "Say Hi" command to the controller.
+*****************************************************************************************************/
 bool Say_Hi(void);
+/****************************************************************************************************
+* Function Name   : Say_Bye
+* Class           : Services
+* Namespace       : <Namespace>
+* Description     : Sends a "Say Bye" command to the controller.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if the "Say Bye" command is successfully sent, false otherwise.
+* Notes           : - This function sends the "Say Bye" command to the controller.
+*****************************************************************************************************/
 bool Say_Bye(void);
 private:
 /****************************************************************************************************
 * Function Name   : Get_Acknowledge
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Reads a byte of data from the serial port and checks if it matches the ACK value.
+* Namespace       : <Namespace>
+* Description     : Receives acknowledgment from the controller.
 * Parameters (in) : None
 * Parameters (out): None
-* Return value    : Boolean indicating whether ACK is received.
-* Notes           : - This function reads a byte of data from the serial port and checks if it matches
-*                     the ACK value defined in Bootloader_State_ACK.
+* Return value    : bool - True if acknowledgment (ACK) is received, false otherwise.
+* Notes           : - This function receives data from the controller and checks if it matches the acknowledgment (ACK) state.
 *****************************************************************************************************/
 bool Get_Acknowledge(void);
 /****************************************************************************************************
@@ -436,16 +523,14 @@ bool Send_Frame(Bootloader_Command_t Service);
 /****************************************************************************************************
 * Function Name   : Send_Frame
 * Class           : Services
-* Namespace       : Bootloader
-* Description     : Sends data frames to the controller.
-* Parameters (in) : Data - The data to be sent in the frames.
+* Namespace       : <Namespace>
+* Description     : Sends the data frame to the controller.
+* Parameters (in) : Data - Reference to the vector containing data to be sent.
 * Parameters (out): None
-* Return value    : bool - True if all frames are sent successfully and acknowledged, false otherwise.
-* Notes           : - This function sends data frames to the controller. It breaks down the data into
-*                     frames of maximum 250 bytes and sends them one by one.
-*                   - It checks for acknowledgment after sending each frame. If acknowledgment is not
-*                     received, it stops sending further frames and returns false.
-*                   - It delays between sending each frame to ensure reliable communication.
+* Return value    : bool - True if the frame is successfully sent and acknowledged, false otherwise.
+* Notes           : - This function sends the data frame to the controller in chunks of maximum 250 bytes.
+*                   - It waits for acknowledgment after sending each chunk.
+*                   - If acknowledgment is not received, it returns false.
 *****************************************************************************************************/
 bool Send_Frame(std::vector<unsigned char> &Data);
 /****************************************************************************************************
@@ -481,15 +566,6 @@ bool Send_Frame(Bootloader_Command_t Service,std::vector<unsigned char> &Data);
 *****************************************************************************************************/
 bool Read_File(std::vector<unsigned char> &Binary_File,std::string &File_Location);
 };
-
-
-
-
-
-
-
-
-
 /*****************************************
 --------------   Monitor   ---------------
 *****************************************/
@@ -497,15 +573,95 @@ class Monitor
 {
 /*************** Methods ****************/
 public:
+/****************************************************************************************************
+* Constructor Name: Monitor
+* Class           : Monitor
+* Description     : Initializes the Monitor object with the specified services, repository path, binary location, and arguments.
+* Parameters (in) : User_Interface   - Reference to the Services object for user interface.
+*                   Repository_Path  - Reference to the string containing the repository path.
+*                   Binary_Location - Reference to the string containing the binary location.
+*                   Arguments        - Reference to the vector containing command-line arguments.
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This constructor initializes the Monitor object with the specified services, repository path, binary location, and arguments.
+*****************************************************************************************************/
 Monitor(Services &User_Interface,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments);
+/****************************************************************************************************
+* Function Name   : Start_Monitoring
+* Class           : Monitor
+* Description     : Starts the monitoring process based on the provided command-line arguments.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function checks the command-line arguments and starts the update service if required.
+*****************************************************************************************************/
 void Start_Monitoring();
 private:
+/****************************************************************************************************
+* Function Name   : Update_Application
+* Class           : Monitor
+* Description     : Updates the application by downloading the update and flashing it.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function waits for updates, then flashes the application with the downloaded update.
+*                   - It starts the target bootloader, waits for reset, and then flashes the application.
+*****************************************************************************************************/
 void Update_Application(void);
-bool Check_For_Update(void);
+/****************************************************************************************************
+* Function Name   : Build_Directory
+* Class           : Monitor
+* Description     : Changes to the binary repository directory or downloads the binary if directory change fails.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if directory change or binary download is successful, false otherwise.
+* Notes           : - This function tries to change to the binary repository directory.
+*                   - If the directory change fails, it calls Download_Binary to download the binary.
+*****************************************************************************************************/
 bool Build_Directory(void);
+/****************************************************************************************************
+* Function Name   : Update_Available
+* Class           : Monitor
+* Description     : Checks if updates are available in the repository by executing git fetch command.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if updates are available, false otherwise.
+* Notes           : - This function executes the git fetch command to check for updates in the repository.
+*                   - It checks if "origin/master" is found in the command output to determine if updates are available.
+*****************************************************************************************************/
 bool Update_Available(void);
+/****************************************************************************************************
+* Function Name   : Download_Binary
+* Class           : Monitor
+* Description     : Downloads the binary from the remote repository using git clone command.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if binary download is successful, false otherwise.
+* Notes           : - This function executes the git clone command to download the binary from the remote repository.
+*****************************************************************************************************/
 bool Download_Binary(void);
+/****************************************************************************************************
+* Function Name   : Get_Update
+* Class           : Monitor
+* Description     : Retrieves updates from the repository using git pull command.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : bool - True if the update is successful, false otherwise.
+* Notes           : - This function executes the git pull command to retrieve updates from the repository.
+*****************************************************************************************************/
 bool Get_Update(void);
+/****************************************************************************************************
+* Function Name   : Wait_For_Update
+* Class           : Monitor
+* Description     : Waits for updates by checking for updates in the repository and downloading them if available.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function first tries to build the directory by calling Build_Directory.
+*                   - If directory build is successful, it starts monitoring for updates.
+*                   - It continuously checks for updates in the repository using Update_Available.
+*                   - If an update is available, it downloads the update using Get_Update.
+*****************************************************************************************************/
 void Wait_For_Update(void);
 /************** Variables ***************/
 private:
@@ -515,15 +671,6 @@ std::string File_Location{};
 std::vector<std::string> &Commands;
 Services &Interface;
 };
-
-
-
-
-
-
-
-
-
 /*****************************************
 ---------    User Interface     ----------
 *****************************************/
@@ -532,40 +679,54 @@ class User_Interface : private Services , public Monitor
 /*************** Methods ****************/
 public:
 /****************************************************************************************************
-* Function Name   : User_Interface
+* Constructor Name: User_Interface
 * Class           : User_Interface
-* Namespace       : Bootloader
-* Description     : Constructor for the User_Interface class.
-* Parameters (in) : User_Interface_File - The file location for user interface initialization.
-*                   GPIO_Manage_Pin    - The GPIO pin for managing user interface operations.
+* Description     : Initializes the User_Interface object with the specified parameters.
+* Parameters (in) : User_Interface_File - Reference to the string containing the user interface file.
+*                   GPIO_Manage_Pin     - Reference to the string containing the GPIO manage pin.
+*                   Repository_Path     - Reference to the string containing the repository path.
+*                   Binary_Location     - Reference to the string containing the binary location.
+*                   Arguments           - Reference to the vector containing command-line arguments.
 * Parameters (out): None
 * Return value    : None
-* Notes           : - This constructor initializes the user interface using the provided file location
-*                     and GPIO pin for managing user interface operations.
-*                   - It initializes the User_Interface class by inheriting from the Services class,
-*                     which handles communication with the controller.
+* Notes           : - This constructor initializes the User_Interface object with the specified parameters.
+*                   - It initializes the Services and Monitor objects.
 *****************************************************************************************************/
 User_Interface(const std::string &User_Interface_File,const std::string &GPIO_Manage_Pin,const std::string &Repository_Path,const std::string &Binary_Location,std::vector<std::string> &Arguments);
+/****************************************************************************************************
+* Destructor Name : ~User_Interface
+* Class           : User_Interface
+* Description     : Destructor for the User_Interface class.
+* Parameters (in) : None
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This destructor ensures proper cleanup when the User_Interface object is destroyed.
+*                   - It exits the bootloader if connected and resets the console color.
+*****************************************************************************************************/
 ~User_Interface();
 /****************************************************************************************************
 * Function Name   : Start_Application
 * Class           : User_Interface
-* Namespace       : Bootloader
-* Description     : Initiates the user interface for the application, providing various options
-*                   for user interaction.
+* Description     : Starts the application interface for user interaction.
 * Parameters (in) : None
 * Parameters (out): None
 * Return value    : None
-* Notes           : - The function utilizes a while loop to continuously display options to the user
-*                     until the user chooses to exit.
-*                   - User input is taken to select different options, and corresponding actions
-*                     are executed based on the chosen option.
+* Notes           : - This function displays a menu for various options and handles user input accordingly.
 *****************************************************************************************************/
 void Start_Application(void);
+/****************************************************************************************************
+* Function Name   : Print_Target_Info
+* Class           : User_Interface
+* Description     : Prints information about the target device.
+* Parameters (in) : State - Boolean indicating whether the target device is detected or not.
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function retrieves information about the target device and prints it.
+*****************************************************************************************************/
 void Print_Target_Info(bool State);
 };
 }
 /********************************************************************
- *  END OF FILE:  Bootloader_Host.h
+ *  END OF FILE:  Bootloader_Interface.h
 ********************************************************************/
 #endif
