@@ -16,7 +16,7 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/CMake")
 #Add Executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 # Specify include directories
-include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_SOURCE_DIR}/Include/ ${LIBRARY_INCLUDES})
+include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include/ ${LIBRARY_INCLUDES})
 #Building Message
 message(STATUS "================ Application Build Finish ================")
 
