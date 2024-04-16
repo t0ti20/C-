@@ -1,0 +1,12 @@
+[
+{
+  "directory": "/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/build",
+  "command": "/usr/bin/g++  -I/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/Test_CPP -I/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/PUBLIC -I/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/Include -g -std=gnu++20 -o CMakeFiles/Test_CPP.dir/Source/Main.cpp.o -c /home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/Source/Main.cpp",
+  "file": "/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/Source/Main.cpp"
+},
+{
+  "directory": "/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/build",
+  "command": "/usr/bin/g++  -I/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/Test_CPP -I/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/PUBLIC -I/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/Include -g -std=gnu++20 -o CMakeFiles/Test_CPP.dir/Source/Server.cpp.o -c /home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/Source/Server.cpp",
+  "file": "/home/t0ti20/Desktop/VS-Code/GitHub/CPP_Applications/Socket_Test/Source/Server.cpp"
+}
+]

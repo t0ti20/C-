@@ -1,0 +1,1 @@
+/usr/bin/g++ -g CMakeFiles/Test_CPP.dir/Source/Main.cpp.o CMakeFiles/Test_CPP.dir/Source/Server.cpp.o -o Test_CPP 
