@@ -2,6 +2,7 @@
 #include <string>
 #include <signal.h>
 using namespace Socket;
+
 constexpr int SOCKET_NUMBER{8000};
 std::string Message{};
 Server_Hadler Server{SOCKET_NUMBER};
