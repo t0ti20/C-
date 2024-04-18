@@ -1,41 +1,66 @@
-#include "Server.hpp"
-#include <string>
-#include <signal.h>
-using namespace Socket;
-
-constexpr int SOCKET_NUMBER{8000};
-std::string Message{};
-Server_Hadler Server{SOCKET_NUMBER};
-void handle_sigint(int signum) 
-{
-    Server.Deinitialization();
-}
+#include <boost/asio.hpp>
+#include <boost/system/system_error.hpp>
+#include <iostream>
+#include <chrono> 
+#include <array> 
+#include <thread>
+void Server(void);
 int main() 
 {
-    signal(SIGINT, handle_sigint);
-    if (Server.Listen()) 
+    Server();
+}
+void Server(void)
+{
+    std::string Message{"Hello World !\n"};
+    boost::system::error_code Error{};
+    try
     {
-        std::cout << "Waiting for client connection...\n";
-        if (Server.Accept_Client()) {
-            std::cout << "Client connected!\n";
-            std::string Message;
-            do
-            {
-                // Read message from client
-                if (!Server.Read_Message(Message)) {
-                    std::cerr << "Error reading message from client\n";
-                    break;
-                }
-
-                // Echo back the message to client
-                if (!Server.Write_Message(Message)) {
-                    std::cerr << "Error writing message to client\n";
-                    break;
-                }
-            } while (Message != "exit\n");
-            // Close client connection
-            Server.Close_Client();
+        boost::asio::io_context IO{};
+        boost::asio::ip::tcp::acceptor Acceptor(IO,boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(),8000));
+        std::cout<<"Accepting Connections on ["<<PORT_NUMBER<<"] ..."<<std::endl;
+        boost::asio::ip::tcp::socket Socket(IO);
+        Acceptor.accept(Socket);
+        std::cout<<"Client Connected ..."<<std::endl;
+        while (true)
+        {
+            std::cout<<"Sending Message ..."<<std::endl;
+            boost::asio::write(Socket,boost::asio::buffer(Message),Error);
+            std::cout<<"Message Sendded"<<std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(2));
         }
     }
-    return 0;
+    catch(std::exception &Exception)
+    {
+        std::cerr<<Exception.what()<<std::endl;
+    }
+}
+void Client(void)
+{
+    std::array<char,255> Buffer{};
+    boost::system::error_code Error{};
+    size_t Bytes_Received{};
+    try
+    {
+        boost::asio::io_context IO{};
+        boost::asio::ip::tcp::resolver Resolver{IO};
+        auto Endpoint{Resolver.resolve("pc","8000")};
+
+        boost::asio::ip::tcp::socket Socket(IO);
+        boost::asio::connect(Socket,Endpoint);
+
+        std::cout<<"Client Connected ..."<<std::endl;
+        while (true)
+        {
+            std::cout<<"Receiving Message Message ..."<<std::endl;
+            Bytes_Received=Socket.read_some(boost::asio::buffer(Buffer),Error);
+            if(Error==boost::asio::error::eof){std::cout<<"Server Disconnected"<<std::endl;break;}
+            else if (Error){throw boost::system::system_error(Error);}
+            std::cout<<"Message Received ["<<Bytes_Received<<"] : ";
+            std::cout.write(Buffer.data(),Bytes_Received);
+        }
+    }
+    catch(std::exception &Exception)
+    {
+        std::cerr<<"Error : "<<Exception.what()<<std::endl;
+    }
 }

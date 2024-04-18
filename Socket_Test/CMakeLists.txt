@@ -1,22 +1,21 @@
 #Building Message
 message(STATUS "================== Building Application ==================")
 #Set Version
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.0)
 #Set Project Name   
-project(Test_CPP VERSION 22.22)
-#Set CPP Standard
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
+project(Bootloader VERSION 22.22)
 #Locate Source Files
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR} "Source/*.c" "Source/*.cpp")
 #Building Message
 message(STATUS "Files To Be Compiled : ${SOURCES}")
-#Edit In Default Location of .cmake files
-set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Libraries/CMake")
+# Specify include directories relative to the current CMake file
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/Include)
 #Add Executable
 add_executable(${PROJECT_NAME} ${SOURCES})
-# Specify include directories
-include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/Include/ ${LIBRARY_INCLUDES})
+#CMake based applications using the SDK
+set(CMAKE_TOOLCHAIN_FILE $ENV{OE_CMAKE_TOOLCHAIN_FILE})
+#Install executable to binary directory
+install(TARGETS ${PROJECT_NAME} DESTINATION bin)
 #Building Message
 message(STATUS "================ Application Build Finish ================")
 
