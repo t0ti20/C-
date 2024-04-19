@@ -4,6 +4,8 @@ message(STATUS "================== Building Application ==================")
 cmake_minimum_required(VERSION 3.0)
 #Set Project Name   
 project(Bootloader VERSION 22.22)
+# Set the C++ standard
+set(CMAKE_CXX_STANDARD 20)
 #Locate Source Files
 file(GLOB_RECURSE SOURCES ${CMAKE_CURRENT_SOURCE_DIR} "Source/*.c" "Source/*.cpp")
 #Building Message

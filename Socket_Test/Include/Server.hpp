@@ -14,38 +14,73 @@
 /*****************************************
 -----------     INCLUDES     -------------
 *****************************************/
+#include <experimental/optional>
+#include <boost/asio.hpp>
+#include <unordered_set>
+#include <functional>
 #include <iostream>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <unistd.h>
-
-#define DEBUGGING 			1
-constexpr int BUFFER_SIZE = 1024;
+#include <optional>
+#include <queue>
+#include <memory>
 /*****************************************
 ----------    GLOBAL DATA     ------------
 *****************************************/
 namespace Socket
 {
+	using msghmndler=std::function<void(std::string)>;
+	using error=std::function<void(void)>;
 /*****************************************
------------- Math Class  -------------
+----------    TCP_Connection     ---------
 *****************************************/
-class Server_Hadler
+class TCP_Connection: public std::enable_shared_from_this<TCP_Connection>
 {
-private:
-	int Server_Description{};
-	int Client_Description{};
-	uint16_t Socket_Number{};
 public:
-	Server_Hadler(uint16_t Socket_Number);
-	~Server_Hadler();
-	bool Initialization(void);
-	bool Listen(void);
-	bool Accept_Client(void);
-	bool Write_Message(const std::string &Message);
-	bool Read_Message(std::string &Message);
-	bool Close_Client(void);
-	bool Deinitialization(void);
+	static std::shared_ptr<TCP_Connection> Create(boost::asio::ip::tcp::socket &&Socket)
+	{
+		return std::shared_ptr<TCP_Connection> (new TCP_Connection(std::move(Socket)));
+	}
+	boost::asio::ip::tcp::socket &Socket(void);
+	void Run(std::function<void(std::string)> &&Message_Handler,std::function<void(void)> &&Error_Handler);
+	std::string Print_Username(void)
+	{
+		return _Username;
+	}
+	void Send_Message(const std::string &Message);
+private:
+	explicit TCP_Connection(boost::asio::ip::tcp::socket &&Socket);
+	void Async_Reading(void);
+	void Done_Reading(boost::system::error_code &Error,size_t Bytes_Transferred);
+	void Async_Writing(void);
+	void Done_Writing(boost::system::error_code &Error,size_t Bytes_Transferred);
+private:
+	boost::asio::streambuf _Buffer{65536};
+	boost::asio::ip::tcp::socket _Socket;
+	std::queue<std::string> _Messages{};
+	std::string _Username{};
+	std::function<void(std::string)> _Message_Handler;
+	std::function<void(void)> _Error_Handler;
+};
+/*****************************************
+------------    TCP_Server     -----------
+*****************************************/
+class TCP_Server
+{
+public:
+	TCP_Server(unsigned int Port_Number);
+	bool Run(void);
+	void Broadcast(const std::string &Message);
+private:
+	void _Start_Accept(void);
+private:
+	unsigned int _Port_Number;
+	boost::asio::io_context _IO_Context;
+	boost::asio::ip::tcp::acceptor _Acceptor;
+	std::experimental::optional<boost::asio::ip::tcp::socket> _Socket;
+	std::unordered_set<std::shared_ptr<TCP_Connection>> _Connections{};
+public:
+	std::function<void(std::shared_ptr<TCP_Connection>)> Client_Connected;
+	std::function<void(std::shared_ptr<TCP_Connection>)> Client_Disconnected;
+	std::function<void(std::string)> Client_Received;
 };
 
 }

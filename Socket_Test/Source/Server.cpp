@@ -13,130 +13,181 @@
 -----------     INCLUDES     -------------
 *****************************************/
 #include "../Include/Server.hpp"
-#include <sys/socket.h>
-#include <sys/types.h>
+#include <memory>
 /*****************************************
 ----------    GLOBAL DATA     ------------
 *****************************************/
-
 namespace Socket
 {
 /*****************************************
-----------    Server_Hadler     ----------
+----------    TCP_Connection     ---------
 *****************************************/
-Server_Hadler::Server_Hadler(uint16_t Shared_Socket_Number)
-:Socket_Number{Shared_Socket_Number}
+TCP_Connection::TCP_Connection(boost::asio::ip::tcp::socket &&Socket):
+_Socket{std::move(Socket)}
 {
-     Initialization();
+     boost::system::error_code Error{};
+     std::stringstream Name{};
+     Name<<_Socket.remote_endpoint();
+     _Username=Name.str();
 }
-/*--------------------------------------*/
-Server_Hadler::~Server_Hadler()
+// /****************************************/
+// void TCP_Connection::Write(void)
+// {
+//      boost::asio::streambuf Buffer{};
+//      auto Strong_This{shared_from_this()};
+//      boost::asio::async_write(_Socket,boost::asio::buffer(_Message),
+//      [Strong_This](const boost::system::error_code &Error,size_t Sennded_Bytes)
+//      {
+//           if(Error){std::cerr<<"Failed To Send Message : "<<Error.message()<<std::endl;}
+//           else{std::cout<<"Message Sendded ["<<Sennded_Bytes<<"] : "<<Strong_This->_Message<<std::endl;}
+//      }
+//      );
+//      _Socket.async_receive(Buffer.prepare(255),
+//      [this](const boost::system::error_code &Error,size_t Received_Bytes)
+//      {
+//           if(boost::asio::error::eof==Error){std::cout<<"Client Disconnected\n";}
+//           else if(Error){throw boost::system::system_error(Error);}
+//           else{}
+//      });  
+// }
+/****************************************/
+void TCP_Connection::Run(std::function<void(std::string)> &&Message_Handler,std::function<void(void)> &&Error_Handler)
 {
-     Close_Client();
-     Deinitialization();
+     _Message_Handler=std::move(Message_Handler);
+     _Error_Handler=std::move(Error_Handler);
+     Async_Reading();
 }
-/*--------------------------------------*/
-bool Server_Hadler::Initialization()
+/****************************************/
+void TCP_Connection::Send_Message(const std::string &Message)
 {
-     sockaddr_in Server_Socket{.sin_family=PF_INET,.sin_port=htons(Socket_Number)};
-     /* Make It (IPV4,TCP,Select_Port_Automatically) */
-     Server_Description=socket(PF_INET,SOCK_STREAM,0);
-     if(Server_Description<0)
+     _Messages.push(Message);
+     if(!_Messages.empty())
      {
-          std::cout<<"xx Error Creating Socket xx\n";
-          return false;
+          Async_Writing();
      }
-     /* This function converts an Internet number from presentation format to binary network format and stores the result.*/
-     inet_pton(PF_INET,"0.0.0.0",&Server_Socket.sin_addr);
-     /*  Bind the socket represented by Description to the network address specified in the Socket structure */
-     if(bind(Server_Description, reinterpret_cast<sockaddr*>(&Server_Socket), sizeof(Server_Socket)))
-     {
-          std::cout<<"xx Error Creating Bind xx\n";
-          return false;
-     }
-     return true;
 }
-bool Server_Hadler::Listen(void)
+/****************************************/
+void TCP_Connection::Async_Reading(void)
 {
-     if(listen(Server_Description,1)<0)
+     boost::asio::async_read_until(_Socket,_Buffer,"\n",
+     [self=shared_from_this()](boost::system::error_code Error,size_t Bytes_Transferred)
      {
-          std::cout<<"xx Error Listening To Socket xx\n";
-          return false;
-     }
-     return true;
+          self->Done_Reading(Error,Bytes_Transferred);
+     });
 }
-bool Server_Hadler::Accept_Client(void)
+/****************************************/
+void TCP_Connection::Done_Reading(boost::system::error_code &Error,size_t Bytes_Transferred)
 {
-     sockaddr_in Client_Socket{};
-     socklen_t Client_Socket_Length{sizeof(Client_Socket)};
-     Client_Description=accept(Server_Description, reinterpret_cast<sockaddr*>(&Client_Socket),&Client_Socket_Length);
-     if(Client_Description<0)
+     if(Error)
      {
-          std::cout<<"xx Error Accept Desired Client xx\n";
-          return false;
+          _Socket.close(Error);
+          std::cout<<"- Connection Lost\n";
+          _Error_Handler();
      }
-     return true;
-}
-bool Server_Hadler::Write_Message(const std::string &Message)
-{
-     if(send(Client_Description, Message.data(), Message.size(),0)<0)
-     {
-          std::cout<<"xx Error Sending Message xx\n";
-          return false;
-     }
-#ifdef DEBUGGING
      else
      {
-          std::cout<<"[DEBUG] Data Sendded ["<<Message.size()<<"]: "<<Message<<"\n";
+          std::stringstream Message{};
+          Message<<"- "<<_Username<<" : "<<std::istream(&_Buffer).rdbuf();
+          _Message_Handler(Message.str());
+          Async_Reading();
      }
-#endif
-     return true;
 }
-bool Server_Hadler::Read_Message(std::string &Message)
+/****************************************/
+
+void TCP_Connection::Async_Writing(void)
 {
-     char Buffer[BUFFER_SIZE]{};
-     Message.clear();
-     ssize_t Received_Bytes{recv(Client_Description, Buffer, BUFFER_SIZE,0)};
-     if(Received_Bytes<0)
+     boost::asio::async_write(_Socket,boost::asio::buffer(_Messages.front()),
+     [self=shared_from_this()](boost::system::error_code Error,size_t Bytes_Transferred)
      {
-          std::cout<<"xx Error Receiving Message xx\n";
-          return false;
+          self->Done_Writing(Error,Bytes_Transferred);
+     });
+}
+/****************************************/
+void TCP_Connection::Done_Writing(boost::system::error_code &Error,size_t Bytes_Transferred)
+{
+     if(Error)
+     {
+          _Socket.close(Error);
+          std::cout<<"- Connection Lost\n";
+          /* Chek Error again If close failed */
+          _Error_Handler();
      }
-#ifdef DEBUGGING
      else
      {
-          std::cout<<"[DEBUG] Data Received ["<<Received_Bytes<<"]: "<<Buffer<<"\n";
+          std::cout<<"- Done Sending Message\n";
+          _Messages.pop();
+          if(!_Messages.empty()){Async_Writing();}
      }
-#endif
-     Message.append(Buffer,Received_Bytes);
-     return true;
 }
-bool Server_Hadler::Close_Client(void)
+/****************************************/
+boost::asio::ip::tcp::socket& TCP_Connection::Socket(void)
 {
-     if(Client_Description!=-1)
-     {
-          if(close(Client_Description)>=0){Client_Description=-1;return true;}
-          else
-          {
-               std::cout<<"xx Error Closing Client xx\n";
-               return false;
-          }
-     }
-     return true;
+     return _Socket;
 }
-bool Server_Hadler::Deinitialization(void)
+
+
+/****************************************/
+/****************************************/
+/****************************************/
+/*****************************************
+------------    TCP_Server     -----------
+*****************************************/
+TCP_Server::TCP_Server(unsigned int Port_Number):
+_Port_Number{Port_Number},
+_Acceptor{boost::asio::ip::tcp::acceptor(_IO_Context,boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(),_Port_Number))}
+{}
+/****************************************/
+bool TCP_Server::Run(void)
 {
-     if(Server_Description!=-1)
+     try
      {
-          if(close(Server_Description)>=0){Server_Description=-1;return true;}
-          else
-          {
-               std::cout<<"xx Error Closing Server xx\n";
-               return false;
-          }
+          _Start_Accept();
+          _IO_Context.run();
+     }
+     catch (std::exception &Error)
+     {
+          std::cerr<<"Error : "<<Error.what()<<std::endl;
+          return false;
      }
      return true;
 }
+/****************************************/
+void TCP_Server::_Start_Accept(void)
+{
+     _Socket.emplace(_IO_Context);
+     /* Asynchronously Accept Connection */
+     _Acceptor.async_accept(*_Socket,[this](const boost::system::error_code &Error)
+     {
+          /* Create Connection */
+          auto Connection{TCP_Connection::Create(std::move(*_Socket))};
+          if(Client_Connected){Client_Connected(Connection);}
+          _Connections.insert(Connection);
+          if(!Error)
+          {
+               Connection->Run
+               (
+                    [this](const std::string &Message){if(Client_Received){Client_Received(Message);}},
+                    [this,Pointer=std::weak_ptr<TCP_Connection>(Connection)]
+                    {
+                         if(std::shared_ptr<TCP_Connection> Shared=Pointer.lock();Shared&&_Connections.erase(Shared))
+                         {
+                              if(Client_Disconnected){Client_Disconnected(Shared);}
+                         }
+                    }
+               );
+          }
+          _Start_Accept();
+     });
+}
+/****************************************/
+void TCP_Server::Broadcast(const std::string &Message)
+{
+     for(auto &Connection:_Connections)
+     {
+          Connection->Send_Message(Message);
+     }
+}
+
 }
 /********************************************************************
  *  END OF FILE:  Server.cpp
