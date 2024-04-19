@@ -27,10 +27,12 @@ namespace Socket
 *****************************************/
 class TCP_Client
 {
+public:
 	TCP_Client(const std::string &Address,unsigned int Port);
 	void Run(void);
 	void Stop(void);
 	void Send_Message(const std::string &Message);
+private:
 	void Async_Reading(void);
 	void Done_Reading(boost::system::error_code &Error,size_t Bytes_Transferred);
 	void Async_Writing(void);
