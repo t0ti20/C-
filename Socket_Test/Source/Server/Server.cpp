@@ -71,6 +71,25 @@ bool TCP_Server::Run(void)
      return true;
 }
 /****************************************************************************************************
+* Function Name   : Broadcast
+* Class           : TCP_Server
+* Namespace       : Socket
+* Type            : Public
+* Description     : Sends a message to all connected clients.
+* Parameters (in) : Message - The message to be broadcasted to all connected clients.
+* Parameters (out): None
+* Return value    : None
+* Notes           : - This function iterates through all connected clients and sends the provided message to each of them.
+*                 : - It uses the Send_Message function of each TCP_Connection object to send the message.
+*****************************************************************************************************/
+void TCP_Server::Broadcast(const std::string &Message)
+{
+     for(auto &Connection:_Connections)
+     {
+          Connection->Send_Message(Message);
+     }
+}
+/****************************************************************************************************
 * Function Name   : _Start_Accept
 * Class           : TCP_Server
 * Namespace       : Socket
