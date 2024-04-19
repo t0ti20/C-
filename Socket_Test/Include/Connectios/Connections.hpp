@@ -166,18 +166,18 @@ void Async_Writing(void);
 *****************************************************************************************************/
 void Done_Writing(boost::system::error_code &Error,size_t Bytes_Transferred);
 private:
-/* Function object for handling incoming messages. */
-std::function<void(std::string)> _Message_Handler;
-/* Function object for handling errors. */
-std::function<void(void)> _Error_Handler;
-/* Stream buffer for storing received data. */
-boost::asio::streambuf _Buffer{65536};
-/* TCP socket object representing the connection. */
-boost::asio::ip::tcp::socket _Socket;
-/* Queue for storing outgoing messages. */
-std::queue<std::string> _Messages{};
-/* Username associated with the TCP connection. */
-std::string _Username{};
+    /* Function object for handling incoming messages. */
+    std::function<void(std::string)> _Message_Handler;
+    /* Function object for handling errors. */
+    std::function<void(void)> _Error_Handler;
+    /* Stream buffer for storing received data. */
+    boost::asio::streambuf _Buffer{65536};
+    /* TCP socket object representing the connection. */
+    boost::asio::ip::tcp::socket _Socket;
+    /* Queue for storing outgoing messages. */
+    std::queue<std::string> _Messages{};
+    /* Username associated with the TCP connection. */
+    std::string _Username{};
 };
 }
 /********************************************************************

@@ -1,13 +1,13 @@
-#include "../Include/Server.hpp"
+#include "../Include/Server/Server.hpp"
 #include <thread>
 int main() 
 {
     Socket::TCP_Server My_Server{8000};
-    My_Server.Client_Connected=[](std::shared_ptr<Socket::TCP_Connection> My_Server)
+    My_Server.Client_Connected=[](Socket::Connection_Pointer My_Server)
     {
         std::cout<<"Client_Connected : "<<My_Server->Print_Username()<<std::endl;
     };
-    My_Server.Client_Disconnected=[](std::shared_ptr<Socket::TCP_Connection> My_Server)
+    My_Server.Client_Disconnected=[](Socket::Connection_Pointer My_Server)
     {
         std::cout<<"Client_Disconnected : "<<My_Server->Print_Username()<<std::endl;
     };

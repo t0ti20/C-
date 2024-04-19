@@ -3,8 +3,9 @@
 -----------------------
  *  Author: Khaled El-Sayed @t0ti20
  *  File: ./Connections.cpp
- *  Date: November 30, 2023
+ *  Date: March 20, 2024
  *  Description: This file contains the declaration of the TCP_Connection class, which represents a TCP 
+ *  Class Name:  TCP_Connection
  *  Namespace:  Socket
  *  (C) 2023 "@t0ti20". All rights reserved.
 *******************************************************************/
