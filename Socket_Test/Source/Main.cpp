@@ -25,14 +25,25 @@ void Client()
     My_Client.Message_Received=[](const std::string &Message)
     {
         std::cout<<"- New Message : "<<Message;
-        //My_Server.Broadcast(Message);
     };
-    My_Client.Run();
+    std::thread Listenning {[&My_Client](){My_Client.Run();}};
+    while(true)
+    {
+        std::string Message{};
+        getline(std::cin,Message);
+        if(Message=="\\q"){break;}
+        else 
+        {
+            Message+='\n';
+            My_Client.Send_Message(Message);
+        }
+    }
+    My_Client.Stop();
+    Listenning.join();
 }
 int main() 
 {
-    Client();
-
+    Server();
     return 0;
 }
 
