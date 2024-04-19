@@ -1,5 +1,6 @@
 #include "../Include/Server/Server.hpp"
 #include "../Include/Client/Client.hpp"
+#include <chrono>
 #include <thread>
 void Server()
 {
@@ -31,6 +32,7 @@ void Client()
     while(true)
     {
         std::string Message{};
+        std::cout<<"Please Enter Message To Send : \n";
         getline(std::cin,Message);
         if(Message=="\\q"){break;}
         else 
@@ -38,13 +40,14 @@ void Client()
             Message+='\n';
             My_Client.Send_Message(Message);
         }
+        std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     My_Client.Stop();
     Listenning.join();
 }
 int main() 
 {
-    Server();
+    Client();
     return 0;
 }
 
