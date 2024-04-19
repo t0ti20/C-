@@ -24,7 +24,7 @@ void Client()
     Socket::TCP_Client My_Client{"pc",8000};
     My_Client.Message_Received=[](const std::string &Message)
     {
-        std::cout<<Message;
+        std::cout<<"- New Message : "<<Message;
         //My_Server.Broadcast(Message);
     };
     My_Client.Run();
@@ -32,5 +32,7 @@ void Client()
 int main() 
 {
     Client();
+
+    return 0;
 }
 

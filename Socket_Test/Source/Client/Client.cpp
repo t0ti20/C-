@@ -43,8 +43,7 @@ void TCP_Client::Run(void)
 void TCP_Client::Stop(void)
 {
      boost::system::error_code Error{};
-     _Socket.close(Error);
-     if(Error){}
+     if(_Socket.close(Error)&&Error){}
 }
 void TCP_Client::Send_Message(const std::string &Message)
 {
@@ -98,7 +97,7 @@ void TCP_Client::Done_Writing(boost::system::error_code &Error,size_t Bytes_Tran
      if(Error)
      {
           /* Close the connection if an error occurred */
-          _Socket.close(Error);
+          if(_Socket.close(Error)&&Error){}
           /* TODO: If close failed */
      }
      /* If no error occurred */
