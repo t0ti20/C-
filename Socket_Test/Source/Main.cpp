@@ -85,10 +85,7 @@ void Client()
             /* Send the message to the server */
             My_Client.Send_Message(Message);
         }
-<<<<<<< HEAD
         /* Sleep for 1 second before sending the next message */
-=======
->>>>>>> 0541f089d27b5f7b40f6de94c71c4cf3c19677fd
         std::this_thread::sleep_for(std::chrono::seconds(1));
     }
     /* Stop the client and wait for the listening thread to join */
@@ -100,12 +97,8 @@ void Client()
 *****************************************/
 int main() 
 {
-<<<<<<< HEAD
     /* Start Application */
     Server();
-=======
-    Client();
->>>>>>> 0541f089d27b5f7b40f6de94c71c4cf3c19677fd
     return 0;
 }
 
