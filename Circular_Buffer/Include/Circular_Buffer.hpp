@@ -102,16 +102,14 @@ constexpr bool operator==(const Buffer_Iterator& Object);
 *****************************************************************************************************/
 constexpr Buffer_Iterator operator++();
 private:
+    /* Current Index Of Iterator */
     size_t m_Current_Index{};
+    /* Total Elements Iterator Already Count */
     size_t m_Total_Elements{};
+    /* Array Base Containing ELements */
     pointer m_Buffer{};
 };
 public:
-
-
-
-
-
 /****************************************************************************************************
 * Constructor Name : Circular_Buffer (Initializer List)
 * Class            : Circular_Buffer<Type, TOTAL_SIZE>
@@ -273,13 +271,14 @@ constexpr Buffer_Iterator end() noexcept;
 * Notes            : None
 *****************************************************************************************************/
 constexpr Buffer_Iterator begin() noexcept;
-
 private:
+    /* Total Size Of Current Elements In Buffer */
     size_t m_Current_Size{};
+    /* Index Of Head To Pop From*/
     size_t m_Head_Index{};
+    /* Index Of Tain To Push In */
     size_t m_Tail_Index{};
-    /* FORTESTINGGGG */
-public:
+    /* Data Structure Storing Elements */
     std::array<Type,TOTAL_SIZE> m_Data{};
 };
 /****************************************************************************************************
