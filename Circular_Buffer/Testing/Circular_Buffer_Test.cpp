@@ -13,11 +13,9 @@
 -----------     INCLUDES     -------------
 *****************************************/
 #include "Circular_Buffer.hpp"
-#include <algorithm>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <stdexcept>
-#include <vector>
 #include <array>
 /*****************************************
 ----------    GLOBAL DATA     ------------
@@ -236,53 +234,30 @@ TEST_F(Circular_Buffer_Test,THROW_IITIALIZER_LIST)
 {
     auto Initialize=[]()
     {Data_Structure::Circular_Buffer<int,5> Buffer{6,7,8,9,10,11};};
-    EXPECT_THROW(Initialize(),std::runtime_error);
-    
+    EXPECT_THROW(Initialize(),std::runtime_error);   
 }
 
 TEST_F(Circular_Buffer_Test,CUSTOM_ITERATOR_FOREACH)
 {
     Data_Structure::Circular_Buffer<int,5> Q{};
-    /* [ 0 0 0 0 0 ] */
-    /* [ X         ] */
     Q.Push(5);
-    /* [ 5 0 0 0 0 ] */
-    /* [ H T       ] */
     Q.Push(10);
-    /* [ 5 10 0 0 0 ] */
-    /* [ H    T     ] */
     Q.Push(15);
-    /* [ 5 10 15 0 0 ] */
-    /* [ H        T  ] */
     Q.Push(20);
-    /* [ 5 10 15 20 0 ] */
-    /* [ H          T ] */
     Q.Push(25);
-    /* [ 5 10 15 20 25 ] */
-    /* [ X             ] */
     Q.Push(30);
-    /* [ 30 10 15 20 25 ] */
-    /* [     X          ] */
     EXPECT_EQ(Q.Head(), 10);
     EXPECT_EQ(Q.Tail(), 10);
     Q.Pop();
-    /* [ 30 10 15 20 25 ] */
-    /* [     T  H       ] */
     EXPECT_EQ(Q.Head(), 15);
     EXPECT_EQ(Q.Tail(), 10);
     Q.Pop();
-    /* [ 30 10 15 20 25 ] */
-    /* [     T     H    ] */
     EXPECT_EQ(Q.Head(), 20);
     EXPECT_EQ(Q.Tail(), 10);
-    Q.Push(35);
-    /* [ 30 35 15 20 25 ] */
-    /* [        T  H    ] */  
+    Q.Push(35); 
     EXPECT_EQ(Q.Head(), 20);
     EXPECT_EQ(Q.Tail(), 15);
     Q.Push(40);
-    /* [ 30 35 40 20 25 ] */
-    /* [          X    ] */  
     EXPECT_EQ(Q.Head(), 20);
     EXPECT_EQ(Q.Tail(), 20);
     EXPECT_EQ(Q.Size(), 5);

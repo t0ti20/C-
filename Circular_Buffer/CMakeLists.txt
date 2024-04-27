@@ -9,10 +9,16 @@ find_package(GTest REQUIRED)
 include_directories(${GTEST_INCLUDE_DIRS} ${CMAKE_SOURCE_DIR}/Include)
 #Define Source Files
 file(GLOB_RECURSE SOURCES ${CMAKE_SOURCE_DIR} "Source/*.c" "Source/*.cpp")
+#Define Source Files
+file(GLOB_RECURSE TESTING ${CMAKE_SOURCE_DIR} "Testing/*.c" "Testing/*.cpp")
 #Adding Executable
-add_executable(${PROJECT_NAME} ${SOURCES})
-#Link With Testing Libs
+add_executable(${PROJECT_NAME} ${TESTING} ${SOURCES})
+# Link With Testing Libraries
 target_link_libraries(${PROJECT_NAME} ${GTEST_LIBRARIES} GTest::GTest GTest::Main)
+# Enable Testing
+enable_testing()
+# Add Tests
+add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 #Enable Discover Tests
 gtest_discover_tests(${PROJECT_NAME})
 #Add target to generate coverage reports

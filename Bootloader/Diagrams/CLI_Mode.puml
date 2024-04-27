@@ -1,0 +1,45 @@
+@startuml CLI_Mode
+title CLI Mode Sequence Diagram
+
+actor Raspberrypi
+participant Target_Chip
+participant Target_Bootloader
+participant Target_Application
+
+Raspberrypi -> Target_Chip: Wait for reset
+Target_Chip -> Raspberrypi: Ask For Halt ACK
+
+Raspberrypi -> Target_Chip: Halt Chip ACK
+Target_Chip -> Target_Bootloader: Start bootloader
+Raspberrypi -> Target_Bootloader: Send Get Chip data Frame
+Target_Bootloader -> Raspberrypi: Send ACK
+Target_Bootloader -> Raspberrypi: Send Data Frame
+Raspberrypi -> Raspberrypi: Check For Frame CRC
+
+alt Frame Valid
+Raspberrypi -> Target_Bootloader: Send ACK
+Raspberrypi -> Raspberrypi: Print Data
+else No command chosen
+    Raspberrypi -> Target_Bootloader: Send Frame Again
+end
+
+activate Raspberrypi
+Raspberrypi -> Raspberrypi: Offer options (Get ID, Get Help, Write Data, Get Version, Erase Flash, Jump Address, Flash Raspberrypi)
+deactivate Raspberrypi
+
+alt Command chosen
+    Raspberrypi -> Raspberrypi: Prepare frame with required data
+    Raspberrypi -> Raspberrypi: Append CRC check
+    Raspberrypi -> Target_Bootloader: Send frame
+    Target_Bootloader -> Raspberrypi: Receive ACK
+else No command chosen
+    Raspberrypi -> Raspberrypi: Continue waiting
+end
+
+Raspberrypi -> Target_Bootloader: Request Target_Chip reset
+Target_Bootloader -> Target_Chip: Reset Target_Chip
+Target_Chip -> Raspberrypi: Ask For Halt 
+Raspberrypi -> Target_Chip: NACK
+Target_Chip -> Target_Application: Jump to application
+
+@enduml 
