@@ -3,7 +3,7 @@ message(STATUS "================== Building Application ==================")
 #Set Version
 cmake_minimum_required(VERSION 3.0)
 #Set Project Name   
-project(Bootloader VERSION 22.22)
+project(Server_Client VERSION 22.22)
 # Set the C++ standard
 set(CMAKE_CXX_STANDARD 20)
 #Locate Source Files

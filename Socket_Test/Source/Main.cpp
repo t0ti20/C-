@@ -62,7 +62,7 @@ void Server()
 void Client()
 {
     /* Create a TCP client instance with the server address "pc" and port 8000 */
-    Socket::TCP_Client My_Client{"pc",8000};
+    Socket::TCP_Client My_Client{"raspberrypi",8000};
     /* Define the message handler function for received messages */
     My_Client.Message_Received=[](const std::string &Message)
     {

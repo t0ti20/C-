@@ -26,13 +26,15 @@
 /*****************************************
 ---------    Configurations     ----------
 *****************************************/
-//#define ENABLE_DEBUG                            (4)
+#define ENABLE_DEBUG                            (4)
 constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
-constexpr unsigned int Sending_Delay_MS         {100};
+constexpr unsigned int Sending_Delay_MS         {200};
 constexpr unsigned int Get_Update_Time_Seconds  {5};
 constexpr unsigned int Application_Location     {32};
-constexpr unsigned int Booting_Flag             {0x8007FFC};
+constexpr unsigned int Application_Size         {32};
+constexpr unsigned int Version_Location         {0x8007FFC};
+constexpr unsigned int CRC_Location             {0x8007FF8};
 /*****************************************
 -----------    Bootloader     ------------
 *****************************************/
@@ -132,7 +134,6 @@ protected:
 *****************************************************************************************************/
 void Append_CRC(std::vector<unsigned char> &Data);
 
-private:
 /****************************************************************************************************
 * Function Name   : CRC_Calculate
 * Class           : CRC_Manage
@@ -152,7 +153,7 @@ unsigned int CRC_Calculate(const std::vector<unsigned char> &Data);
 /*****************************************
 -----------    Serial Port     -----------
 *****************************************/
-class Serial_Port : private CRC_Manage ,protected GPIO_Manage
+class Serial_Port : protected CRC_Manage ,protected GPIO_Manage
 {
 /*************** Methods ****************/
 protected:
@@ -263,8 +264,18 @@ public:
 *****************************************************************************************************/
 Services(const std::string &Device_Location,const std::string &GPIO_Manage_Pin);
 
+
+
+unsigned int Calculate_Application_CRC(void);
+
 unsigned int Get_Version(const std::string& Location);
-bool Set_Version(std::string &File_Location);
+
+bool Set_Application_Information(std::string &File_Location);
+
+
+
+
+
 bool Get_File(std::string &File_Location);
 /****************************************************************************************************
 * Function Name   : Get_Version
@@ -443,7 +454,7 @@ void Write_Data(void);
 * Notes           : - This function constructs the data bytes to be sent, including the address and data.
 *                   - It then sends the write data command along with the data bytes to the controller.
 *****************************************************************************************************/
-bool Write_Data(unsigned int &Address,unsigned int &Data);
+bool Write_Data(unsigned int &Address,const unsigned int &Data);
 /****************************************************************************************************
 * Function Name   : Start_Target_Bootloader
 * Class           : Services

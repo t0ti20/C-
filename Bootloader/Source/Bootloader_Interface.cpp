@@ -55,6 +55,8 @@ GPIO_Manage::GPIO_Manage(const std::string &GPIO_Manage_Pin):Pin_Number{GPIO_Man
             Pin_Handlar<<"out";
             Pin_Handlar.flush();
             Pin_Handlar.close();
+            /* Set Pin */
+            Set_Pin();
         }
         /* Print error message if failed to open direction file */
         else{std::cout<<"Failed to open direction file."<<std::endl;}
@@ -106,8 +108,8 @@ GPIO_Manage::~GPIO_Manage()
 void GPIO_Manage::Halt_MCU(void)
 {
     /* Toggle Pin To Generate Interrupt To Run Bootloader Application */
-    Set_Pin();
     Clear_Pin();
+    Set_Pin();
 }
 
 /****************************************************************************************************
@@ -723,19 +725,50 @@ unsigned int Services::Get_Version(const std::string& Location)
     }
     return((Minor<<24)|(Major<<16)|(ID<<8));
 }
-
-bool Services::Set_Version(std::string &File_Location)
+unsigned int Services::Calculate_Application_CRC(void)
+{
+    std::vector<unsigned char> Data{};
+    unsigned char Swap_Temp{};
+    std::string File_Location{"/home/root/FOTA/Application/Build"};
+    unsigned int CRC_Result{};
+    size_t Appendded_Bytes{};
+    if(Get_File(File_Location))
+    {
+        if(Read_File(Data,File_Location))
+        {
+            Appendded_Bytes=((Application_Size*1024)-Data.size());
+            while(Appendded_Bytes--){Data.push_back(0xff);}
+            /* Convert Endianness */
+            for (size_t Counter{};Counter<Data.size();Counter+=4)
+            {
+                Swap_Temp=Data[Counter];
+                Data[Counter]=Data[Counter+3];
+                Data[Counter+3]=Swap_Temp;
+                Swap_Temp=Data[Counter+1];
+                Data[Counter+1]=Data[Counter+2];
+                Data[Counter+2]=Swap_Temp;
+            }
+            CRC_Result=CRC_Calculate(Data);
+        }
+    }
+    return CRC_Result;
+}
+bool Services::Set_Application_Information(std::string &File_Location)
 {
     bool Status{};
     unsigned char ID{},Major{},Minor{};
     unsigned int Version{Get_Version(File_Location)};
     unsigned int Total_Pages{1};
     unsigned int Start_Page{Application_Location-1};
-    unsigned int Boot_Version_Address{Booting_Flag};
+    unsigned int Boot_Version_Address{Version_Location};
+    unsigned int Application_CRC_Address{CRC_Location};
     Status=Erase_Flash(Start_Page,Total_Pages);
     if(Status)
     {
+        /* Set Version */
         Status=Write_Data(Boot_Version_Address,Version);
+        /* Set Application CRC */
+        if(Status){Status=Write_Data(Application_CRC_Address,Calculate_Application_CRC());}
     }
     return Status;
 }
@@ -748,12 +781,14 @@ bool Services::Flash_Application(unsigned int &Start_Page, std::string &File_Loc
         /* Prepare data bytes */
         std::vector<unsigned char> Data_Bytes{static_cast<unsigned char>(Start_Page), static_cast<unsigned char>((Payload.size() / 250) + 1)};
         /* Send flash application command */
-        if(Status==Send_Frame(Bootloader_Command_Flash_Application,Data_Bytes))
+        Status=Send_Frame(Bootloader_Command_Flash_Application,Data_Bytes);
+        if(Status)
         {
+            Status=Send_Frame(Payload);
             /* Send payload */
-            if(Send_Frame(Payload))
+            if(Status)
             {
-                Status=Set_Version(File_Location);
+                Status=Set_Application_Information(File_Location);
             }
         }
     }
@@ -1078,7 +1113,7 @@ void Services::Update_Buffer(void)
 *****************************************************************************************************/
 void Services::Exit_Bootloader(void)
 {
-    Say_Bye();
+    Halt_MCU();
 }
 
 /****************************************************************************************************
@@ -1128,7 +1163,7 @@ void Services::Write_Data(void)
 * Notes           : - This function constructs the data bytes to be sent, including the address and data.
 *                   - It then sends the write data command along with the data bytes to the controller.
 *****************************************************************************************************/
-bool Services::Write_Data(unsigned int &Address,unsigned int &Data)
+bool Services::Write_Data(unsigned int &Address,const unsigned int &Data)
 {
     bool Status{};
     std::vector<unsigned char> Sending_Bytes(sizeof(Address) + sizeof(Data));
@@ -1181,6 +1216,8 @@ bool Services::Say_Bye(void)
 void Services::Start_Target_Bootloader(void)
 {
     bool Status{true};
+    Halt_MCU();
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
     while(Status)
     {
         Status=!Say_Hi();
@@ -1535,7 +1572,7 @@ void User_Interface::Start_Application(void)
     {
         std::cout<<Green;
         std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
-        std::cout<<Yellow<<" -> "<<Default<<"Please Reset Target To Start Bootloader ...\n"<<Green;
+        std::cout<<Yellow<<" -> "<<Default<<"Trying To Reset Target To Start Bootloader ...\n"<<Green;
         std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
         Start_Target_Bootloader();
         if(system("clear")){};
