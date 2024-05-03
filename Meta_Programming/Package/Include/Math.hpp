@@ -93,7 +93,7 @@ Calculator();
 *                   : - It performs a static assertion to ensure that the argument is of arithmetic type.
 *****************************************************************************************************/
 template<typename Type>
-Type Factorial(Type Number)
+Type Factorial(const Type Number)
 {
      static_assert(std::is_convertible_v<Type,float>);
      return (Number>0)?Factorial(Number-1)*Number:1;

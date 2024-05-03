@@ -1,0 +1,14 @@
+@startuml
+title Circular Buffer Push Operation
+start
+:Append New Element;
+:Check If Head Need Move "Care About Head Overflow";
+if (Condition) then (yes)
+  :Move Head Index;
+else (no)
+  :Keep Head Index;
+endif
+:Increment Current Size "Care About Overflow";
+:Increment Tail New Position "Care About Overflow";
+stop
+@enduml

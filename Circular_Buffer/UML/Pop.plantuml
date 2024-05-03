@@ -1,0 +1,15 @@
+@startuml
+title Circular Buffer Pop Operation
+start
+
+:Default Zero Return Data;
+if (Buffer Is Empty) then (no)
+  :Return Data From Head;
+  :Update Current Size;
+  :Update Next Head;
+else (yes)
+  :Buffer Is Embty;
+endif
+:Return Data;
+stop
+@enduml

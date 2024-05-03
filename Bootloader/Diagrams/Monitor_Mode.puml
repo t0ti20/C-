@@ -1,0 +1,35 @@
+@startuml Monitor_Mode
+title Monitoring Mode Sequence Diagram
+
+actor Raspberrypi
+participant Server
+participant Target_Chip
+participant Target_Bootloader
+participant Target_Application
+
+Raspberrypi -> Server: Watch for updates every 5 seconds
+alt Update found
+    Server -> Raspberrypi: Download update
+    Raspberrypi -> Raspberrypi: Check update validity
+    Raspberrypi -> Target_Chip: Wait for next reset
+    Target_Chip -> Raspberrypi: Ask For Halt
+    Raspberrypi -> Target_Chip: Halt target ACK
+    Target_Chip -> Target_Bootloader: Jump to bootloader
+    Raspberrypi -> Raspberrypi: Prepare application frame
+    Raspberrypi -> Target_Bootloader: Send Payload frames
+alt Frame Valid
+    Target_Bootloader -> Raspberrypi: Receive frame ACK
+else Frame Currupted
+    Target_Bootloader -> Raspberrypi: Receive frame NACK
+    Raspberrypi -> Target_Bootloader: Send Data Again
+end
+    Raspberrypi -> Target_Bootloader: Send reset frame
+    Target_Bootloader -> Target_Chip: Reset target
+    Target_Chip -> Raspberrypi: Ask For Halt
+    Raspberrypi -> Target_Chip: Halt target NACK
+    Target_Chip -> Target_Application: Jump to new application
+    Raspberrypi -> Raspberrypi: Save logs in system journals
+else No update found
+    Raspberrypi -> Raspberrypi: Continue monitoring
+end
+@enduml
