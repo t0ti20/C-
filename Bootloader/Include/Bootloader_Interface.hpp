@@ -26,7 +26,7 @@
 /*****************************************
 ---------    Configurations     ----------
 *****************************************/
-#define ENABLE_DEBUG                            (4)
+//#define ENABLE_DEBUG                            (4)
 constexpr unsigned char Bootloader_State_ACK    {1};
 constexpr unsigned char Bootloader_State_NACK   {2};
 constexpr unsigned int Sending_Delay_MS         {200};
@@ -34,7 +34,7 @@ constexpr unsigned int Get_Update_Time_Seconds  {5};
 constexpr unsigned int Application_Location     {32};
 constexpr unsigned int Application_Size         {32};
 constexpr unsigned int Version_Location         {0x8007FFC};
-constexpr unsigned int CRC_Location             {0x8007FF8};
+constexpr unsigned int CRC_Location             {0x8007FE0};
 /*****************************************
 -----------    Bootloader     ------------
 *****************************************/

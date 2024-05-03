@@ -766,9 +766,9 @@ bool Services::Set_Application_Information(std::string &File_Location)
     if(Status)
     {
         /* Set Version */
-        Status=Write_Data(Boot_Version_Address,Version);
+        Status=Write_Data(Application_CRC_Address,Calculate_Application_CRC());
         /* Set Application CRC */
-        if(Status){Status=Write_Data(Application_CRC_Address,Calculate_Application_CRC());}
+        if(Status){Status=Write_Data(Boot_Version_Address,Version);}
     }
     return Status;
 }
@@ -877,8 +877,6 @@ void Services::Flash_Application(void)
             Animation_Running=false;
             Animation_Thread.join();                                       
             std::cout<<Green<<"================================ "<<Default<<"Done Flashing Application"<<Green<<" ===============================\n";
-            /* Reset MCU To Start Application */
-            Halt_MCU();
         }
         else
         {
@@ -1537,7 +1535,7 @@ void User_Interface::Print_Target_Info(bool State)
         std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
         std::cout<<"+++++++++++++++++++++++++++++++++++++ Target Detected ++++++++++++++++++++++++++++++++++++\n";
         std::cout<<"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++\n";
-        std::cout<<Yellow<<" -> Built In ID : "<<Default<<"0x"<<std::hex<<Built_ID[0]<<" 0x"<<Built_ID[1]<<" 0x"<<Built_ID[2]<<std::endl<<std::dec;
+        //std::cout<<Yellow<<" -> Built In ID : "<<Default<<"0x"<<std::hex<<Built_ID[0]<<" 0x"<<Built_ID[1]<<" 0x"<<Built_ID[2]<<std::endl<<std::dec;
         std::cout<<Yellow<<" -> Chip Number : "<<Default<<ID<<std::endl;
         std::cout<<Yellow<<" -> Application Version : "<<Default<<Major<<"."<<Minor<<std::endl;
         std::cout<<Green;
